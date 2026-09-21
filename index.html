@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1f33">
+  <meta name="description" content="Mobile UH field inspections that supplement eMH.">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <title>UH Field App</title>
+</head>
+<body>
+  <header class="app-header">
+    <div><p class="eyebrow">MCAS FUTENMA · FIELD WORKING TOOL</p><h1>UH Field App</h1></div>
+    <button id="installBtn" class="button secondary compact" hidden>Install</button>
+  </header>
+  <main id="app" aria-live="polite"></main>
+  <nav class="bottom-nav" aria-label="Primary navigation">
+    <button data-route="modules"><span>▦</span>Modules</button>
+    <button data-route="inspection"><span>✓</span>Inspect</button>
+    <button data-route="records"><span>▤</span>Records</button>
+    <button data-route="settings"><span>⚙</span>Settings</button>
+  </nav>
+  <dialog id="dialog"><div id="dialogBody"></div></dialog>
+  <script src="app.js"></script>
+</body>
+</html>
