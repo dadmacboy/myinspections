@@ -55,7 +55,7 @@ This is a draft personal working tool that supplements, but does not replace, eM
 - Page 1 CAC signature fields remain untouched and available for certificate signing.
 - Check-Out uses the same three-page form engine and behavior as Check-In, with Inspection Type shown as CHECK-OUT/TERMINATION.
 
-## v0.7.2 — Quarterly Inspection
+## v0.7.3 — Quarterly Inspection
 - Added Quarterly Inspection module with 20% / 100% cycle selection.
 - Added configurable Building & Space Inventory (decks, bedrooms, common bathrooms, laundry, lounges, closets, storage, offices, utility and custom other spaces).
 - Fast PASS & NEXT workflow; deficiency workflow uses standardized FAIL and NON-FAIL criteria from the supplied quarterly guidance.
@@ -67,7 +67,7 @@ This is a draft personal working tool that supplements, but does not replace, eM
 - Existing Check-In, Check-Out, Command-Directed and Furniture modules were not changed.
 
 
-## v0.7.2 Quarterly inventory simplification
+## v0.7.3 Quarterly inventory simplification
 - Removed deck/floor count setup.
 - Select buildings already loaded in Settings; assigned BM auto-fills and remains editable.
 - Bedroom inventory uses comma-separated ranges such as `101-134, 201-234`.
@@ -75,7 +75,7 @@ This is a draft personal working tool that supplements, but does not replace, eM
 - Existing building inventory can be edited, exported, or imported as JSON.
 - Work Order Required is now a checkbox.
 
-## v0.7.2 Quarterly cleanup
+## v0.7.3 Quarterly cleanup
 - Building Inventory is a one-time master setup reused by Quarterly cycles.
 - Select a preloaded building; Assigned BM is populated from Settings assignments.
 - Enter number of decks/floors; each deck gets bedroom From/To range rows with + additional range support.
@@ -85,3 +85,10 @@ This is a draft personal working tool that supplements, but does not replace, eM
 - Duplicate FY + Quarter + Building cycles are prevented and the existing cycle is opened instead.
 - Quarterly progress/action spacing, bottom padding, and navigation-to-top behavior were tightened for phone use.
 - Work Order Required remains a checkbox.
+
+
+## v0.7.4 — Pace patch
+- Adds a compact Pace line to the Quarterly cycle progress card.
+- Pace uses the 30-day physical-inspection window: remaining spaces / remaining Phase 1 days.
+- Shows ON PACE or BEHIND PACE against an even 30-day completion trajectory.
+- Hides the daily pace once the inspection population is complete.
