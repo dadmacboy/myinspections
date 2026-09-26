@@ -55,7 +55,7 @@ This is a draft personal working tool that supplements, but does not replace, eM
 - Page 1 CAC signature fields remain untouched and available for certificate signing.
 - Check-Out uses the same three-page form engine and behavior as Check-In, with Inspection Type shown as CHECK-OUT/TERMINATION.
 
-## v0.7.0 — Quarterly Inspection
+## v0.7.1 — Quarterly Inspection
 - Added Quarterly Inspection module with 20% / 100% cycle selection.
 - Added configurable Building & Space Inventory (decks, bedrooms, common bathrooms, laundry, lounges, closets, storage, offices, utility and custom other spaces).
 - Fast PASS & NEXT workflow; deficiency workflow uses standardized FAIL and NON-FAIL criteria from the supplied quarterly guidance.
@@ -65,3 +65,12 @@ This is a draft personal working tool that supplements, but does not replace, eM
 - Building configuration JSON import/export.
 - Full JSON backup/restore now includes core app plus Quarterly data.
 - Existing Check-In, Check-Out, Command-Directed and Furniture modules were not changed.
+
+
+## v0.7.1 Quarterly inventory simplification
+- Removed deck/floor count setup.
+- Select buildings already loaded in Settings; assigned BM auto-fills and remains editable.
+- Bedroom inventory uses comma-separated ranges such as `101-134, 201-234`.
+- Common/support spaces use simple quantity fields.
+- Existing building inventory can be edited, exported, or imported as JSON.
+- Work Order Required is now a checkbox.
