@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_KEY='uh-field-app-draft-v3',DRAFT_KEY=APP_KEY+'-inspection-draft',APP_VERSION='0.6.3-preview';
+const APP_KEY='uh-field-app-draft-v3',DRAFT_KEY=APP_KEY+'-inspection-draft',APP_VERSION='0.6.6';
 const EHS_SECTIONS=[
   {name:'General Safety',items:[
     ['Do all unit entry and bedroom doors open/close/lock properly?',false],
@@ -280,6 +280,19 @@ function buildInspectionPdf(record,signatureImages=[]){
     addChoiceSection('Follow-up Actions',followOptions,record.followUp||[]);
     addChoiceSection('Overall Inspection Results',['Pass','Pass with Condition','Pass with non-Environmental, Health and Safety','Fail'],[record.outcome||outcomeFor(record)]);
     addSection('Inspection Comments');ensure(62);page.commands.push('0.5 0.55 0.58 RG',`${M} ${y-50} ${CW} 50 re S`);if(record.overallNotes)wrap(record.overallNotes,100).slice(0,5).forEach((ln,i)=>textAt(ln,M+5,y-11-i*8,6));y-=55;
+    // Supplemental finger signatures are intentionally placed at the end of the
+    // field form.  They do not replace the Page 1 CAC signature fields.
+    const fingerSigs=signatureImages.filter(img=>img&&img.bytes);
+    if(fingerSigs.length){
+      const blockH=34+fingerSigs.length*54;ensure(blockH);addSection('Field Signatures (Supplemental)');
+      for(const img of fingerSigs){
+        textAt(img.label||'Field Signature',M+3,y-2,6.2,true);
+        const boxY=y-45,boxW=220,boxH=38;
+        page.commands.push('0.65 0.68 0.72 RG',`${M+3} ${boxY} ${boxW} ${boxH} re S`);
+        img.pdfRect=[M+7,boxY+3,M+3+boxW-4,boxY+boxH-3];img.pageIndex=pages.length-1;
+        y-=54;
+      }
+    }
     pages.forEach((p,i)=>p.commands.push('0.4 0.45 0.5 rg',`BT /F1 6 Tf 1 0 0 1 ${M} 18 Tm (${pdfString(`${record.inspectionNumber||record.recordNumber} - Page ${i+1} of ${pages.length}`)}) Tj ET`));
     return assemblePdf(pages,signatureImages,W,H,[{pageIndex:0,name:'HousingRepCACSignature',rect:[sigX,houseY,sigX+sigW,houseY+sigH]},{pageIndex:0,name:'ResidentCACSignature',rect:[sigX,resY,sigX+sigW,resY+sigH]}]);
   }
@@ -293,6 +306,8 @@ function base64Bytes(value){const binary=atob(value),bytes=new Uint8Array(binary
 function jpegDimensions(bytes){if(bytes[0]!==0xff||bytes[1]!==0xd8)throw new Error('Invalid JPEG');let at=2;while(at<bytes.length){if(bytes[at]!==0xff){at++;continue}const marker=bytes[at+1];if(marker===0xd9||marker===0xda)break;const length=(bytes[at+2]<<8)|bytes[at+3];if(marker>=0xc0&&marker<=0xc3)return{height:(bytes[at+5]<<8)|bytes[at+6],width:(bytes[at+7]<<8)|bytes[at+8]};at+=2+length}throw new Error('JPEG dimensions not found')}
 function assemblePdf(pages,images,W,H,signatureFields=null){
   const fields=signatureFields?(Array.isArray(signatureFields)?signatureFields:[signatureFields]):[];
+  // Paint captured field signatures only where the form explicitly assigned them.
+  images.forEach(img=>{if(!img.pdfRect||img.pageIndex==null)return;const [x1,y1,x2,y2]=img.pdfRect,w=x2-x1,h=y2-y1;pages[img.pageIndex]?.commands.push('q',`${w} 0 0 ${h} ${x1} ${y1} cm`, `/${img.key} Do`,'Q')});
   const enc=new TextEncoder(),objects=[],fontRegular=3,fontBold=4,firstPage=5,pageIds=pages.map((_,i)=>firstPage+i*2),contentIds=pages.map((_,i)=>firstPage+i*2+1),firstImage=firstPage+pages.length*2,imageIds=images.map((_,i)=>firstImage+i),sigWidgetIds=fields.map((_,i)=>firstImage+images.length+i),acroId=fields.length?firstImage+images.length+fields.length:null;
   objects[1]=enc.encode(`<< /Type /Catalog /Pages 2 0 R${fields.length?` /AcroForm ${acroId} 0 R`:''} >>`);objects[2]=enc.encode(`<< /Type /Pages /Kids [${pageIds.map(id=>`${id} 0 R`).join(' ')}] /Count ${pages.length} >>`);objects[fontRegular]=enc.encode('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');objects[fontBold]=enc.encode('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
   pages.forEach((p,i)=>{const stream=enc.encode(p.commands.join('\n')),xobjects=images.length?` /XObject << ${images.map((img,j)=>`/${img.key} ${imageIds[j]} 0 R`).join(' ')} >>`:'',annots=fields.some(f=>f.pageIndex===i)?` /Annots [${fields.map((f,j)=>f.pageIndex===i?`${sigWidgetIds[j]} 0 R`:'').filter(Boolean).join(' ')}]`:'';objects[pageIds[i]]=enc.encode(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${p.width||W} ${p.height||H}] /Resources << /Font << /F1 ${fontRegular} 0 R /F2 ${fontBold} 0 R >>${xobjects} >> /Contents ${contentIds[i]} 0 R${annots} >>`);objects[contentIds[i]]=joinBytes([enc.encode(`<< /Length ${stream.length} >>\nstream\n`),stream,enc.encode('\nendstream')])});
@@ -313,4 +328,4 @@ function zipStore(fileMap,mime){const enc=new TextEncoder(),parts=[],central=[];
 function dosTime(date){return{time:(date.getHours()<<11)|(date.getMinutes()<<5)|(date.getSeconds()>>1),date:((date.getFullYear()-1980)<<9)|((date.getMonth()+1)<<5)|date.getDate()}}
 const CRC_TABLE=(()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let k=0;k<8;k++)c=(c&1)?0xedb88320^(c>>>1):c>>>1;t[i]=c>>>0}return t})();
 function crc32(bytes){let c=0xffffffff;for(const b of bytes)c=CRC_TABLE[(c^b)&255]^(c>>>8);return(c^0xffffffff)>>>0}
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;const b=document.querySelector('#installBtn');b.hidden=false;b.onclick=async()=>{await deferredInstall.prompt();deferredInstall=null;b.hidden=true}});if('serviceWorker'in navigator)window.addEventListener('load',async()=>{let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(reloading||sessionStorage.getItem('uh-sw-version')===APP_VERSION)return;reloading=true;sessionStorage.setItem('uh-sw-version',APP_VERSION);window.location.reload()});try{const reg=await navigator.serviceWorker.register('sw.js?v=0.6.3',{updateViaCache:'none'});await reg.update()}catch{}});render();
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;const b=document.querySelector('#installBtn');b.hidden=false;b.onclick=async()=>{await deferredInstall.prompt();deferredInstall=null;b.hidden=true}});if('serviceWorker'in navigator)window.addEventListener('load',async()=>{let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(reloading||sessionStorage.getItem('uh-sw-version')===APP_VERSION)return;reloading=true;sessionStorage.setItem('uh-sw-version',APP_VERSION);window.location.reload()});try{const reg=await navigator.serviceWorker.register('sw.js?v=0.6.6',{updateViaCache:'none'});await reg.update()}catch{}});render();
