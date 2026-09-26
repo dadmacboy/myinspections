@@ -92,3 +92,10 @@ This is a draft personal working tool that supplements, but does not replace, eM
 - Pace uses the 30-day physical-inspection window: remaining spaces / remaining Phase 1 days.
 - Shows ON PACE or BEHIND PACE against an even 30-day completion trajectory.
 - Hides the daily pace once the inspection population is complete.
+
+## v0.7.5 Inventory Controls Patch
+- Replaced dynamic + range controls with three fixed ranges per deck; Range 2 and 3 are collapsed optional sections.
+- Replaced + Space controls with a collapsible standard Common / Support Spaces quantity list.
+- Added two collapsed custom space entries per deck.
+- Updated placeholders: Enter number of decks, Enter room number, Enter a number.
+- Pace status is green for ON PACE and red for BEHIND PACE.
