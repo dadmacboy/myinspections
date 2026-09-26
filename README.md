@@ -54,3 +54,14 @@ This is a draft personal working tool that supplements, but does not replace, eM
 - Optional finger-captured Housing Rep and Resident signatures print in a supplemental Field Signatures block after Inspection Comments.
 - Page 1 CAC signature fields remain untouched and available for certificate signing.
 - Check-Out uses the same three-page form engine and behavior as Check-In, with Inspection Type shown as CHECK-OUT/TERMINATION.
+
+## v0.7.0 — Quarterly Inspection
+- Added Quarterly Inspection module with 20% / 100% cycle selection.
+- Added configurable Building & Space Inventory (decks, bedrooms, common bathrooms, laundry, lounges, closets, storage, offices, utility and custom other spaces).
+- Fast PASS & NEXT workflow; deficiency workflow uses standardized FAIL and NON-FAIL criteria from the supplied quarterly guidance.
+- Automatic PASS / PASS W/CONDITION / FAIL logic and generated comments.
+- Progress dashboard and 60-day phase indicator.
+- Quarterly Excel export: COMPILED RESULTS, INSPECTION DETAIL, WORK ORDERS REQUIRED.
+- Building configuration JSON import/export.
+- Full JSON backup/restore now includes core app plus Quarterly data.
+- Existing Check-In, Check-Out, Command-Directed and Furniture modules were not changed.
