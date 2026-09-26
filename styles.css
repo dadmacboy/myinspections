@@ -233,3 +233,6 @@ th{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.
 
 /* v0.7.7 20% sample */
 .q-sample-list{margin-top:12px;display:grid;gap:8px}.q-sample-deck{padding:9px 10px;border:1px solid var(--line,#d7dee7);border-radius:10px}.q-sample-deck>div{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.q-sample-room{display:inline-flex;align-items:center;gap:3px;padding:4px 7px;border-radius:8px;background:rgba(127,127,127,.10);font-weight:700}.q-mini-replace{border:0;background:transparent;padding:0 2px;font-size:16px;cursor:pointer}.q-sub-log{margin-top:10px}.notice.success{border-color:#9ad7ad;background:#edf9f0}
+
+/* v0.7.8 combined quarterly export */
+.q-combined-list{display:grid;gap:8px}.q-combined-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border,#d7dde5);border-radius:10px}.q-combined-item span{display:grid;gap:2px}.q-combined-item small{color:var(--muted,#667085)}

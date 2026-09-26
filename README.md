@@ -101,7 +101,7 @@ This is a draft personal working tool that supplements, but does not replace, eM
 - Pace status is green for ON PACE and red for BEHIND PACE.
 
 
-## v0.7.7 Common-Space N/A Patch
+## v0.7.8 Common-Space N/A Patch
 - Added cycle-level Common / Support Spaces N/A checkbox.
 - N/A removes common/support spaces from Required, Remaining, Pace, and percent-complete calculations without deleting the master building inventory.
 - If common/support inspections already exist, the app warns before marking the category N/A; existing records are retained.
@@ -110,9 +110,17 @@ This is a draft personal working tool that supplements, but does not replace, eM
 - Laundry equipment remains high-level in Quarterly; detailed washer/dryer inventory is reserved for a separate future module.
 
 
-## v0.7.7
+## v0.7.8
 - Generates a 20% bedroom sample (rounded up) proportionally across decks and randomly within each deck.
 - Sample must be reviewed and accepted before it becomes the cycle population.
 - Common/support spaces remain a separate population and can be marked N/A at cycle level.
 - Accepted samples are locked; an uninspected sampled room can be replaced by a random unselected room on the same deck, with substitution history retained.
 - Sampling method is labeled as an app method, not an official USMC sampling rule.
+
+
+## v0.7.8
+- Added Combined Export for compatible Quarterly cycles (same FY, Quarter, and inspection type).
+- Select multiple buildings or Select All.
+- Appends building records into shared COMPILED RESULTS, INSPECTION DETAIL, and WORK ORDERS REQUIRED sheets.
+- Added SUMMARY sheet with per-building and overall totals.
+- Existing single-building export remains available.
