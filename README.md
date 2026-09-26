@@ -55,7 +55,7 @@ This is a draft personal working tool that supplements, but does not replace, eM
 - Page 1 CAC signature fields remain untouched and available for certificate signing.
 - Check-Out uses the same three-page form engine and behavior as Check-In, with Inspection Type shown as CHECK-OUT/TERMINATION.
 
-## v0.7.1 — Quarterly Inspection
+## v0.7.2 — Quarterly Inspection
 - Added Quarterly Inspection module with 20% / 100% cycle selection.
 - Added configurable Building & Space Inventory (decks, bedrooms, common bathrooms, laundry, lounges, closets, storage, offices, utility and custom other spaces).
 - Fast PASS & NEXT workflow; deficiency workflow uses standardized FAIL and NON-FAIL criteria from the supplied quarterly guidance.
@@ -67,10 +67,21 @@ This is a draft personal working tool that supplements, but does not replace, eM
 - Existing Check-In, Check-Out, Command-Directed and Furniture modules were not changed.
 
 
-## v0.7.1 Quarterly inventory simplification
+## v0.7.2 Quarterly inventory simplification
 - Removed deck/floor count setup.
 - Select buildings already loaded in Settings; assigned BM auto-fills and remains editable.
 - Bedroom inventory uses comma-separated ranges such as `101-134, 201-234`.
 - Common/support spaces use simple quantity fields.
 - Existing building inventory can be edited, exported, or imported as JSON.
 - Work Order Required is now a checkbox.
+
+## v0.7.2 Quarterly cleanup
+- Building Inventory is a one-time master setup reused by Quarterly cycles.
+- Select a preloaded building; Assigned BM is populated from Settings assignments.
+- Enter number of decks/floors; each deck gets bedroom From/To range rows with + additional range support.
+- Add named common/support spaces per deck with + Add Space; copy repeating support spaces to the next deck.
+- Configured building cards use edit/delete icons; editing updates the existing building inventory.
+- New cycles load the saved building inventory and save a snapshot so later master-layout edits do not change historical cycles.
+- Duplicate FY + Quarter + Building cycles are prevented and the existing cycle is opened instead.
+- Quarterly progress/action spacing, bottom padding, and navigation-to-top behavior were tightened for phone use.
+- Work Order Required remains a checkbox.
