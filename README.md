@@ -38,6 +38,13 @@ The first module was drafted from the supplied **Check in form eMH**, **Checkout
 This is a draft personal working tool that supplements, but does not replace, eMH, QSRMax, official inspections, key-control records, or local procedures. Enter only the minimum resident information required by the official checklist; do not enter DoD IDs, phone numbers, or unrelated PII/CUI. Resident information and signatures are stored locally in the browser and JSON backup; protect the device and exported files and remove records according to local requirements. Furniture quantities remain editable because the uploaded example does not prove the standard quantity for every Futenma room configuration.
 
 
-## v0.6.4
+## v0.6.5
 - Moved Housing Rep and Resident signature labels to the left of their CAC signature fields.
 - Added Re-Inspection Yes/No and Present Yes/No checkboxes below the Resident signature field on page 1.
+
+
+## v0.6.5 PDF header correction
+- Page 1 CAC signature fields are coordinate-positioned alongside the Housing Rep and Resident rows.
+- Signature labels sit to the left of their corresponding fields.
+- Re-Inspection and Present Yes/No checkboxes sit directly below the Resident signature row.
+- The signature block no longer overlaps Country or Room Designation fields.

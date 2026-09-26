@@ -260,10 +260,10 @@ function buildInspectionPdf(record,signatureImages=[]){
     field('State/Province',record.formFields?.stateProvince||'OKINAWA',y);textAt('Postal Code:',245,y,6.2,false,'0.35 0.35 0.35');textAt(record.formFields?.postalCode||'96372',302,y,6.4);textAt('Country:',380,y,6.2,false,'0.35 0.35 0.35');textAt(record.formFields?.country||'JAPAN',425,y,6.4);y-=16;
     field('Unit Designation',record.formFields?.unitDesignation||'',y);textAt('Room Designation:',300,y,6.2,false,'0.35 0.35 0.35');textAt(record.formFields?.roomDesignation||'',382,y,6.4);y-=17;
     field('Housing Rep Name',record.inspector||'',y);y-=17;field('Resident Name',record.formFields?.residentName||'',y);y-=17;field('Paygrade / Rank',[record.formFields?.paygrade,record.formFields?.rank].filter(Boolean).join(' / '),y);
-    const sigLabelX=300,sigX=390,sigW=165,sigH=22,houseY=H-116,resY=H-151;
-    textAt('Housing Rep Signature:',sigLabelX,houseY+7,6.2,false,'0.35 0.35 0.35');page.commands.push('0.45 0.5 0.55 RG',`${sigX} ${houseY} ${sigW} ${sigH} re S`);
-    textAt('Resident Signature:',sigLabelX,resY+7,6.2,false,'0.35 0.35 0.35');page.commands.push('0.45 0.5 0.55 RG',`${sigX} ${resY} ${sigW} ${sigH} re S`);
-    const ctrlY=resY-16;
+    const sigLabelX=300,sigX=390,sigW=165,sigH=16,houseY=H-137,resY=H-154;
+    textAt('Housing Rep Signature:',sigLabelX,houseY+5,6.2,false,'0.35 0.35 0.35');page.commands.push('0.45 0.5 0.55 RG',`${sigX} ${houseY} ${sigW} ${sigH} re S`);
+    textAt('Resident Signature:',sigLabelX,resY+5,6.2,false,'0.35 0.35 0.35');page.commands.push('0.45 0.5 0.55 RG',`${sigX} ${resY} ${sigW} ${sigH} re S`);
+    const ctrlY=resY-14;
     textAt('Re-Inspection:',sigLabelX,ctrlY,6.0,false,'0.35 0.35 0.35');
     const checkBox=(x,yy,selected)=>{page.commands.push('0.25 0.3 0.35 RG',`${x} ${yy-3.5} 7 7 re S`);if(selected){page.commands.push('0 0 0 rg',`${x+1.4} ${yy} m ${x+3.0} ${yy-2.0} l ${x+6.0} ${yy+2.4} l S`)}};
     checkBox(sigLabelX+66,ctrlY+1,(record.reinspection||'No')==='Yes');textAt('Yes',sigLabelX+77,ctrlY,5.8);
