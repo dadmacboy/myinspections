@@ -183,6 +183,10 @@ th{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.
 .readings-table input[readonly]{background:#eef2f5;color:#344454}
 .roster-input{min-height:180px!important;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;line-height:1.5}
 .signature-section{display:grid;grid-template-columns:1fr;gap:8px;padding:9px;border-bottom:2px solid #69747e;background:#f7f9fa}
+.official-fields{border-bottom:2px solid #69747e;background:#f7f9fa}
+.official-field-grid{padding:10px}
+.official-field-grid .field input,.official-field-grid .field select{min-height:38px;padding:8px;font-size:.78rem}
+.range-export{margin-bottom:12px;border-top:5px solid var(--blue)}
 .signature-box{border:1px solid #aeb7c0;background:white}.signature-label{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 7px;border-bottom:1px solid #c8cdd2;font-size:.65rem;text-transform:uppercase}
 .signature-clear{border:0;background:#e8edf2;color:var(--navy);font-size:.62rem;font-weight:800;padding:4px 7px;border-radius:4px}
 .signature-box canvas{display:block;width:100%;height:90px;background:linear-gradient(to bottom,transparent 74px,#aeb7c0 75px,transparent 76px);touch-action:none;cursor:crosshair}

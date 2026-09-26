@@ -14,11 +14,14 @@ Mobile-first GitHub Pages draft for conducting Check-In, Check-Out, Command-Dire
 - Command-Directed temperature, relative-humidity, and calculated dew-point readings embedded within Mold/Moisture Control.
 - Separate Settings lists for preloading building numbers and Building Managers; each populates its own form field.
 - Digital signature pads for the Building Manager/Housing Rep and resident at the top of every form.
+- Individual and combined PDF exports use the supplied five-page Command-Directed Inspection scan as the page background, in the correct logical page order, with values and medium dots placed over the official fields.
+- The official PDF fields include resident name, paygrade/rank, resident presence, location/address, and unit/room designation.
+- Records can be filtered by an inclusive inspection-date range and exported as one combined PDF or one Excel workbook.
 - Furniture inventory separated into its own module and organized by quantity rather than repeated item rows.
 - Per-Marine and per-room furniture defaults with adjustable expected quantities.
 - Expected, present, and automatically calculated missing quantities, plus rating, condition code, and comments.
 - Furniture Present quantities start blank; expected quantities adjust when 1, 2, or 3 occupants are selected.
-- Persistent unfinished drafts, completed-record review, eMH-updated status, JSON backup, and true XLSX export.
+- Persistent unfinished drafts, completed-record review/editing, eMH-updated status, JSON backup, and true XLSX export.
 - Resident 15-day QSRMax discrepancy instructions in the completed record.
 - Offline use after the first successful load.
 
@@ -32,4 +35,4 @@ The first module was drafted from the supplied **Check in form eMH**, **Checkout
 
 ## Important limitations
 
-This is a draft personal working tool that supplements, but does not replace, eMH, QSRMax, official inspections, key-control records, or local procedures. Do not enter resident names, DoD IDs, phone numbers, or other unnecessary PII/CUI. Signatures are stored only in the browser and JSON backup; the Excel summary records whether each signature was captured. Protect the device and export or remove records according to local requirements. Furniture quantities remain editable because the uploaded example does not prove the standard quantity for every Futenma room configuration.
+This is a draft personal working tool that supplements, but does not replace, eMH, QSRMax, official inspections, key-control records, or local procedures. Enter only the minimum resident information required by the official checklist; do not enter DoD IDs, phone numbers, or unrelated PII/CUI. Resident information and signatures are stored locally in the browser and JSON backup; protect the device and exported files and remove records according to local requirements. Furniture quantities remain editable because the uploaded example does not prove the standard quantity for every Futenma room configuration.
