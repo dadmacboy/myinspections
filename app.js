@@ -1,6 +1,7 @@
+
 'use strict';
 
-const APP_KEY='uh-field-app-draft-v3',DRAFT_KEY=APP_KEY+'-inspection-draft',APP_VERSION='0.7.8';
+const APP_KEY='uh-field-next-v100',DRAFT_KEY=APP_KEY+'-inspection-draft',APP_VERSION='1.0.2';
 const EHS_SECTIONS=[
   {name:'General Safety',items:[
     ['Do all unit entry and bedroom doors open/close/lock properly?',false],
@@ -121,23 +122,29 @@ const USMC_GRADES=[
   ['W-1','Warrant Officer'],['W-2','Chief Warrant Officer 2'],['W-3','Chief Warrant Officer 3'],['W-4','Chief Warrant Officer 4'],['W-5','Chief Warrant Officer 5'],
   ['O-1','Second Lieutenant'],['O-2','First Lieutenant'],['O-3','Captain'],['O-4','Major'],['O-5','Lieutenant Colonel'],['O-6','Colonel'],['O-7','Brigadier General'],['O-8','Major General'],['O-9','Lieutenant General'],['O-10','General']
 ];
-const DEFAULT_BM_ASSIGNMENTS=`400|David Silvaloaso
-428|David Silvaloaso
-460|Marcus Rivera
-461|Marcus Rivera
-429|Darius Bruce
-229|Darius Bruce
-219|Emanual Larkin
-218|Emanual Larkin
-431|Naomi Davis
-417|Naomi Davis
-223|Anthony LeCrone
-225|Anthony LeCrone`;
-const emptyState=()=>({version:APP_VERSION,settings:{installation:'MCAS Futenma',installationCode:'FT',inspector:'David Silvaloaso',buildings:'400\n428\n460\n461\n429\n229\n219\n218\n431\n417\n223\n225',buildingManagers:'David Silvaloaso\nMarcus Rivera\nDarius Bruce\nEmanual Larkin\nNaomi Davis\nAnthony LeCrone',bmAssignments:DEFAULT_BM_ASSIGNMENTS,acknowledged:false},records:[]});
+const DEFAULT_BM_ASSIGNMENTS=``;
+const emptyState=()=>({version:APP_VERSION,settings:{installation:'MCAS Futenma',installationCode:'FT',inspector:'',buildings:`218
+219
+223
+225
+226
+229
+400
+417
+428
+429
+431
+460
+461`,buildingManagers:`David Silvaloaso
+Marcus Rivera
+Darius Bruce
+Columbus Wilson
+Naomi Davis
+Anthony LeCrone`,bmAssignments:'',acknowledged:false},records:[]});
 let state=loadState(),draft=loadDraft(),route=draft?'inspection':'modules',pendingType='Check-In',deferredInstall=null,rangeFrom='',rangeTo='';
 const app=document.querySelector('#app'),dialog=document.querySelector('#dialog'),dialogBody=document.querySelector('#dialogBody');
 
-function loadState(){try{const saved=JSON.parse(localStorage.getItem(APP_KEY)),base=emptyState();if(!saved)return base;const settings={...base.settings,...(saved.settings||{})};if(!settings.buildings&&settings.buildingRoster)settings.buildings=String(settings.buildingRoster).split(/\r?\n/).map(x=>x.split('|')[0].trim()).filter(Boolean).join('\n');if(!settings.buildingManagers&&settings.buildingRoster)settings.buildingManagers=[...new Set(String(settings.buildingRoster).split(/\r?\n/).map(x=>x.split('|').slice(1).join('|').trim()).filter(Boolean))].join('\n');return{...base,...saved,settings}}catch{return emptyState()}}
+function loadState(){try{const base=emptyState();let saved=JSON.parse(localStorage.getItem(APP_KEY)||'null');if(!saved){for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i)||'';if(!/uh[-_ ]?field/i.test(k)||k===APP_KEY)continue;try{const candidate=JSON.parse(localStorage.getItem(k)||'null');const core=candidate?.backupType==='UHFieldAppFull'?candidate.core:candidate;if(core&&Array.isArray(core.records)&&core.settings){saved=core;localStorage.setItem(APP_KEY,JSON.stringify({...base,...core,_migratedFrom:k,_migratedAt:new Date().toISOString()}));break}}catch{}}}if(!saved)return base;const settings={...base.settings,...(saved.settings||{})};if(!settings.buildings&&settings.buildingRoster)settings.buildings=String(settings.buildingRoster).split(/\r?\n/).map(x=>x.split('|')[0].trim()).filter(Boolean).join('\n');if(!settings.buildingManagers&&settings.buildingRoster)settings.buildingManagers=[...new Set(String(settings.buildingRoster).split(/\r?\n/).map(x=>x.split('|').slice(1).join('|').trim()).filter(Boolean))].join('\n');return{...base,...saved,settings}}catch{return emptyState()}}
 function loadDraft(){try{return normalizeDraft(JSON.parse(localStorage.getItem(DRAFT_KEY)))}catch{return null}}
 function normalizeDraft(d){if(!d)return null;d.ehsResponses=(d.ehsResponses||[]).map(r=>({...r,choices:r.choices||['Yes','No',...(r.allowNA?['N/A']:[])]}));d.sectionComments=d.sectionComments||{};d.componentSectionNA=d.componentSectionNA||{};d.followUp=d.followUp||[];d.signatures=d.signatures||{housingRep:'',resident:''};d.extraFields=d.extraFields||{fireAlarmInspectionDate:''};d.formFields={installation:'CAMP BUTLER MCB - OKINAWA CAMP FUTENMA',location:`${state?.settings?.installationCode||'FT'}-${d.building||''}-${d.room||''}`,address:'',stateProvince:'OKINAWA',postalCode:'96372',country:'JAPAN',unitDesignation:'1 BR, 1 BA (<180 NSF)',roomDesignation:'PRIVATE BEDROOM',residentName:'NA',paygrade:'NA',rank:'NA',present:'No',propertyType:'BARRACKS',...(d.formFields||{})};d.readings=d.readings||{temperature:{outdoor:'',unit:'',floor:'',bedroom:'',bathroom:'',comments:''},humidity:{outdoor:'',unit:'',floor:'',bedroom:'',bathroom:'',comments:''},dewPoint:{outdoor:'',unit:'',floor:'',bedroom:'',bathroom:'',comments:''}};return d}
 function save(){state.version=APP_VERSION;localStorage.setItem(APP_KEY,JSON.stringify(state))}
@@ -317,7 +324,7 @@ function assemblePdf(pages,images,W,H,signatureFields=null){
 }
 function joinBytes(parts){const size=parts.reduce((n,p)=>n+p.length,0),out=new Uint8Array(size);let at=0;parts.forEach(p=>{out.set(p,at);at+=p.length});return out}
 
-function exportExcel(records,filename){const list=records||state.records,sheets=[{name:'Inspection Summary',rows:[['Record Number','eMH Inspection Number','Type','Date','Installation','Building','Room','Furniture Sets','Building Manager / Housing Rep','Basis','Re-inspection','Resident Name','Paygrade','Rank','Resident Present','Location','Address','Unit Designation','Room Designation','Fire Alarm Inspection Date','Outcome','Follow-up Actions','BM Signature Captured','Resident Signature Captured','eMH Updated','Overall Comments'],...list.map(r=>[r.recordNumber,r.inspectionNumber||'',r.type,r.date,r.formFields?.installation||state.settings.installation,r.building,r.room,r.occupants,r.inspector,r.basis,r.reinspection||'',r.formFields?.residentName||'',r.formFields?.paygrade||'',r.formFields?.rank||'',r.formFields?.present||'',r.formFields?.location||'',r.formFields?.address||'',r.formFields?.unitDesignation||'',r.formFields?.roomDesignation||'',r.extraFields?.fireAlarmInspectionDate||'',r.outcome,(r.followUp||[]).join('; '),r.signatures?.housingRep?'Yes':'No',r.signatures?.resident?'Yes':'No',r.emhUpdated?'Yes':'No',r.overallNotes])]},{name:'EHS Checklist',rows:[['Record Number','Type','Date','Building','Room','Section','Question','Answer','Section Details'],...list.flatMap(r=>(r.ehsResponses||[]).map(x=>[r.recordNumber,r.type,r.date,r.building,r.room,x.section,x.item,x.answer,r.sectionComments?.[x.section]||'']))]},{name:'Components',rows:[['Record Number','Type','Date','Building','Room','Section','Component','Rating','Condition Code','Comments'],...list.flatMap(r=>(r.componentResponses||[]).map(x=>[r.recordNumber,r.type,r.date,r.building,r.room,x.section,x.item,x.rating,x.condition,x.comments]))]},{name:'Furniture',rows:[['Record Number','Type','Date','Building','Room','Furniture Sets','Item','Quantity Rule','Expected','Present','Missing','Rating','Condition Code','Comments'],...list.flatMap(r=>(r.furniture||[]).map(f=>[r.recordNumber,r.type,r.date,r.building,r.room,r.occupants,f.item,f.mode,f.expected,f.present,f.present===''?'':Math.max(0,f.expected-f.present),f.rating,f.condition,f.comments]))]},{name:'Environmental Readings',rows:[['Record Number','Type','Date','Building','Room','Reading','Outdoor','Unit','Floor Outside Unit','Bedroom','Bathroom','Comments'],...list.flatMap(r=>r.readings?['temperature','humidity','dewPoint'].map(key=>[r.recordNumber,r.type,r.date,r.building,r.room,key,r.readings[key].outdoor,r.readings[key].unit,r.readings[key].floor,r.readings[key].bedroom,r.readings[key].bathroom,r.readings[key].comments]):[])]},{name:'Deficiencies',rows:[['Record Number','Type','Date','Building','Room','Category','Item','Rating or Answer','Condition','Comments'],...list.flatMap(r=>[...(r.ehsResponses||[]).filter(x=>x.answer==='No').map(x=>[r.recordNumber,r.type,r.date,r.building,r.room,x.section,x.item,x.answer,'',r.sectionComments?.[x.section]||'']),...(r.componentResponses||[]).filter(x=>['P','EHS'].includes(x.rating)||x.condition).map(x=>[r.recordNumber,r.type,r.date,r.building,r.room,x.section,x.item,x.rating,x.condition,x.comments]),...(r.furniture||[]).filter(f=>furnitureDeficient(f)).map(f=>[r.recordNumber,r.type,r.date,r.building,r.room,'Furniture',f.item,f.rating,f.condition,`Expected ${f.expected}; present ${f.present}. ${f.comments||''}`])])]}];download(filename||`UH-inspections-${today()}.xlsx`,buildXlsx(sheets))}
+function exportExcel(records,filename){const list=records||state.records,sheets=[{name:'Inspection Summary',rows:[['Record Number','eMH Inspection Number','Type','Checkout Stage','Checkout Case ID','Scheduled Final Date','Final Property/Gear Removed','Final Personal Furniture Removed','Final Trash Removed','Final Deep Clean Complete','Final Inspection Notes','Final SR Required','Final SR Repair Note','Date','Installation','Building','Room','Furniture Sets','Building Manager / Housing Rep','Basis','Re-inspection','Resident Name','Paygrade','Rank','Resident Present','Location','Address','Unit Designation','Room Designation','Fire Alarm Inspection Date','Outcome','Follow-up Actions','BM Signature Captured','Resident Signature Captured','eMH Updated','Overall Comments'],...list.map(r=>[r.recordNumber,r.inspectionNumber||'',r.type,r.checkoutStage||'',r.checkoutCaseId||'',r.scheduledFinalDate||'',r.finalReadiness?.personalPropertyRemoved?'Yes':'',r.finalReadiness?.personalFurnitureRemoved?'Yes':'',r.finalReadiness?.trashRemoved?'Yes':'',r.finalReadiness?.deepCleanComplete?'Yes':'',r.finalInspectionNotes||'',r.finalServiceRequestRequired?'Yes':'No',r.finalServiceRequestNote||'',r.date,r.formFields?.installation||state.settings.installation,r.building,r.room,r.occupants,r.inspector,r.basis,r.reinspection||'',r.formFields?.residentName||'',r.formFields?.paygrade||'',r.formFields?.rank||'',r.formFields?.present||'',r.formFields?.location||'',r.formFields?.address||'',r.formFields?.unitDesignation||'',r.formFields?.roomDesignation||'',r.extraFields?.fireAlarmInspectionDate||'',r.outcome,(r.followUp||[]).join('; '),r.signatures?.housingRep?'Yes':'No',r.signatures?.resident?'Yes':'No',r.emhUpdated?'Yes':'No',r.overallNotes])]},{name:'EHS Checklist',rows:[['Record Number','Type','Date','Building','Room','Section','Question','Answer','Section Details'],...list.flatMap(r=>(r.ehsResponses||[]).map(x=>[r.recordNumber,r.type,r.date,r.building,r.room,x.section,x.item,x.answer,r.sectionComments?.[x.section]||'']))]},{name:'Components',rows:[['Record Number','Type','Date','Building','Room','Section','Component','Rating','Condition Code','Comments'],...list.flatMap(r=>(r.componentResponses||[]).map(x=>[r.recordNumber,r.type,r.date,r.building,r.room,x.section,x.item,x.rating,x.condition,x.comments]))]},{name:'Furniture',rows:[['Record Number','Type','Date','Building','Room','Furniture Sets','Item','Quantity Rule','Expected','Present','Missing','Rating','Condition Code','Comments'],...list.flatMap(r=>(r.furniture||[]).map(f=>[r.recordNumber,r.type,r.date,r.building,r.room,r.occupants,f.item,f.mode,f.expected,f.present,f.present===''?'':Math.max(0,f.expected-f.present),f.rating,f.condition,f.comments]))]},{name:'Environmental Readings',rows:[['Record Number','Type','Date','Building','Room','Reading','Outdoor','Unit','Floor Outside Unit','Bedroom','Bathroom','Comments'],...list.flatMap(r=>r.readings?['temperature','humidity','dewPoint'].map(key=>[r.recordNumber,r.type,r.date,r.building,r.room,key,r.readings[key].outdoor,r.readings[key].unit,r.readings[key].floor,r.readings[key].bedroom,r.readings[key].bathroom,r.readings[key].comments]):[])]},{name:'Deficiencies',rows:[['Record Number','Type','Date','Building','Room','Category','Item','Rating or Answer','Condition','Comments'],...list.flatMap(r=>[...(r.ehsResponses||[]).filter(x=>x.answer==='No').map(x=>[r.recordNumber,r.type,r.date,r.building,r.room,x.section,x.item,x.answer,'',r.sectionComments?.[x.section]||'']),...(r.componentResponses||[]).filter(x=>['P','EHS'].includes(x.rating)||x.condition).map(x=>[r.recordNumber,r.type,r.date,r.building,r.room,x.section,x.item,x.rating,x.condition,x.comments]),...(r.furniture||[]).filter(f=>furnitureDeficient(f)).map(f=>[r.recordNumber,r.type,r.date,r.building,r.room,'Furniture',f.item,f.rating,f.condition,`Expected ${f.expected}; present ${f.present}. ${f.comments||''}`])])]}];download(filename||`UH-inspections-${today()}.xlsx`,buildXlsx(sheets))}
 
 function buildXlsx(sheets){const now=new Date().toISOString(),files={'[Content_Types].xml':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>${sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`,'_rels/.rels':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>`,'docProps/core.xml':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>UH Field Inspections</dc:title><dc:creator>UH Field App</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created></cp:coreProperties>`,'xl/workbook.xml':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((s,i)=>`<sheet name="${xml(s.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets></workbook>`,'xl/_rels/workbook.xml.rels':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`,'xl/styles.xml':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0B1F33"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles><dxfs count="0"/><tableStyles count="0"/></styleSheet>`};sheets.forEach((s,i)=>files[`xl/worksheets/sheet${i+1}.xml`]=sheetXml(s));return zipStore(files,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}
 function sheetXml(sheet){const rows=sheet.rows.map((row,ri)=>`<row r="${ri+1}">${row.map((v,ci)=>cellXml(v,ri,ci)).join('')}</row>`).join(''),max=Math.max(1,...sheet.rows.map(r=>r.length));return`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${Array.from({length:max},(_,i)=>`<col min="${i+1}" max="${i+1}" width="${i<6?18:28}" customWidth="1"/>`).join('')}</cols><sheetData>${rows}</sheetData><autoFilter ref="A1:${colName(max-1)}${Math.max(1,sheet.rows.length)}"/></worksheet>`}
@@ -328,7 +335,7 @@ function zipStore(fileMap,mime){const enc=new TextEncoder(),parts=[],central=[];
 function dosTime(date){return{time:(date.getHours()<<11)|(date.getMinutes()<<5)|(date.getSeconds()>>1),date:((date.getFullYear()-1980)<<9)|((date.getMonth()+1)<<5)|date.getDate()}}
 const CRC_TABLE=(()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let k=0;k<8;k++)c=(c&1)?0xedb88320^(c>>>1):c>>>1;t[i]=c>>>0}return t})();
 function crc32(bytes){let c=0xffffffff;for(const b of bytes)c=CRC_TABLE[(c^b)&255]^(c>>>8);return(c^0xffffffff)>>>0}
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;const b=document.querySelector('#installBtn');b.hidden=false;b.onclick=async()=>{await deferredInstall.prompt();deferredInstall=null;b.hidden=true}});if('serviceWorker'in navigator)window.addEventListener('load',async()=>{let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(reloading||sessionStorage.getItem('uh-sw-version')===APP_VERSION)return;reloading=true;sessionStorage.setItem('uh-sw-version',APP_VERSION);window.location.reload()});try{const reg=await navigator.serviceWorker.register('sw.js?v=0.7.4',{updateViaCache:'none'});await reg.update()}catch{}});render();
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;const b=document.querySelector('#installBtn');b.hidden=false;b.onclick=async()=>{await deferredInstall.prompt();deferredInstall=null;b.hidden=true}});if('serviceWorker'in navigator)window.addEventListener('load',async()=>{let reloading=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(reloading||sessionStorage.getItem('uh-sw-version')===APP_VERSION)return;reloading=true;sessionStorage.setItem('uh-sw-version',APP_VERSION);window.location.reload()});try{const reg=await navigator.serviceWorker.register('sw.js?v=1.0.2',{updateViaCache:'none'});await reg.update()}catch{}});render();
 
 
 /* ===== Quarterly Inspection module v0.7.0 =====
@@ -478,3 +485,809 @@ action=function(name,id){
  if(name==='q-combined-export')return qCombinedExportDialog()
  return _coreAction(name,id)
 }
+
+
+/* ===== v0.8.0 DRAFT EXPERIENCE OVERRIDES ===== */
+const V080_PRELOADED_ROOMS={"218":["101","102","103","104","105","106","107","108","109","110","111","112","113","114","115","116","117","119","201","202","203","204","205","206","207","208","209","210","211","212","213","214","215","216","217","218","219","220","221","301","302","303","304","305","306","307","308","309","310","311","312","313","314","315","316","317","318","319","320","321"],"219":["101","102","103","104","105","106","107","108","111","112","113","114","115","116","117","118","119","120","121","122","123","124","125","126","201","202","203","204","205","206","207","208","209","210","211","212","213","214","215","216","217","219","220","221","222","223","224","225","226","227","228","229","230","231","232","301","302","303","304","305","306","307","308","309","310","311","312","313","314","315","316","317","319","320","321","322","323","324","325","326","327","328","329","330","331","332"],"223":["101","102","103","104","105","106","107","108","109","110","111","112","113","114","115","116","117","118","119","120","121","122","123","124","201","202","203","204","205","206","207","208","209","210","211","212","213","214","215","216","217","218","219","220","221","222","223","224","225","301","302","303","304","305","306","307","308","309","310","311","312","313","314","315","316","317","318","319","320","321","322","323","324","325"],"225":["101","102","103","104","105","106","107","108","109","110","111","112","113","114","115","116","117","118","119","120","121","122","123","124","125","126","127","128","129","130","201","202","203","204","205","206","207","208","209","210","211","212","213","214","215","216","217","218","219","220","221","222","223","224","225","226","227","228","229","230","231","232","233","301","302","303","304","305","306","307","308","309","310","311","312","313","314","315","316","317","318","319","320","321","322","323","324","325","326","327","328","329","330","331","332","333","401","402","403","404","405","406","407","408","409","410","411","412","413","414","415","416","417","418","419","420","421","422","423","424","425","426","427","428","429","430","431","432","433"],"226":["101","102","103","104","105","106","107","108","109","110","111","112","113","114","115","116","117","118","119","120","121","122","123","124","125","126","127","128","129","130","201","202","203","204","205","206","207","208","209","210","211","212","213","214","215","216","217","218","219","220","221","222","223","224","225","226","227","228","229","230","231","232","233","301","302","303","304","305","306","307","308","309","310","311","312","313","314","315","316","317","318","319","320","321","322","323","324","325","326","327","328","329","330","331","332","333","401","402","403","404","405","406","407","408","409","410","411","412","413","414","415","416","417","418","419","420","421","422","423","424","425","426","427","428","429","430","431","432","433"],"229":["101","102","103","104","105","106","107","108","109","110","111","112","113","114","115","116","117","118","119","120","121","122","123","124","125","126","127","128","129","130","131","132","133","134","135","136","137","138","139","140","141","142","143","144","145","147","201","202","203","204","205","206","207","208","209","210","211","212","213","214","215","216","217","218","219","220","221","222","223","224","225","226","227","228","229","230","231","232","233","234","235","236","237","238","239","240","241","242","243","244","245","246","247","248","249","251","301","302","303","304","305","306","307","308","309","310","311","312","313","314","315","316","317","318","319","320","321","322","323","324","325","326","327","328","329","330","331","332","333","334","335","336","337","338","339","340","341","342","343","344","345","346","347","348","349","351","401","402","403","404","405","406","407","408","409","410","411","412","413","414","415","416","417","418","419","420","421","422","423","424","425","426","427","428","429","430","431","432","433","434","435","436","437","438","439","440","441","442","443","444","445","446","447","448","449","451"],"400":["101","102","103","104","105","106","107","108","109","110","111","112","113","114","115","116","117","118","119","120","121","122","123","124","125","126","127","128","129","130","131","132","133","134","135","136","137","138","139","140","141","142","143","144","145","147","201","202","203","204","205","206","207","208","209","210","211","212","213","214","215","216","217","218","219","220","221","222","223","224","225","226","227","228","229","230","231","232","233","234","235","236","237","238","239","240","241","242","243","244","245","246","247","248","249","251","301","302","303","304","305","306","307","308","309","310","311","312","313","314","315","316","317","318","319","320","321","322","323","324","325","326","327","328","329","330","331","332","333","334","335","336","337","338","339","340","341","342","343","344","345","346","347","348","349","351","401","402","403","404","405","406","407","408","409","410","411","412","413","414","415","416","417","418","419","420","421","422","423","424","425","426","427","428","429","430","431","432","433","434","435","436","437","438","439","440","441","442","443","444","445","446","447","448","449","451"],"417":["101","102","103","104","105","106","107","108","109","111","112","113","114","115","116","117","118","119","120","201","202","203","204","205","206","207","208","209","211","212","213","214","215","216","217","218","219","220","221","222","223","224"],"428":["100","101","102","103","104","105","106","107","108","109","110","111","112","113","114","200","201","202","203","204","205","206","207","208","209","210","211","212","213"],"429":["112","113","114","115","116","117","118","119","120","121","122","123","124","125","126","205","206","207","208","209","210","211","212","213","214","215","216","217","218"],"431":["100","101","102","103","104","105","106","107","108","109","110","111","112","113","114","115","116","117","118","119","120","121","122","123","124","125","126","127","200","201","202","203","204","205","206","207","208","209","210","211","212","213","214","215","216","217","218","219","220","221","222","223","224","225","226","227","228","229","230","231","232","233","234","235","236","237","238","239","240","241","242","243","300","301","302","303","304","305","306","307","308","309","310","311","312","313","314","315","316","317","318","319","320","321","322","323","324","325","326","327","328","329","330","331","332","333","334","335","336","337","338","339","340","341","342","343","400","401","402","403","404","405","406","407","408","409","410","411","412","413","414","415","416","417","418","419","420","421","422","423","424","425","426","427","428","429","430","431","432","433","434","435","436","437","438","439","440","441","442","443"],"460":["101","102","103","104","105","106","107","108","109","110","111","112","113","114","115","116","117","118","119","120","121","122","123","124","125","126","127","128","129","201","202","203","204","205","206","207","208","209","210","211","212","213","214","215","216","217","218","219","220","221","222","223","224","225","226","227","228","229","230","231","232","301","302","303","304","305","306","307","308","309","310","311","312","313","314","315","316","317","318","319","320","321","322","323","324","325","326","327","328","329","330","331","332","401","402","403","404","405","406","407","408","409","410","411","412","413","414","415","416","417","418","419","420","421","422","423","424","425","426","427","428","429","430","431","432"],"461":["109","110","111","112","113","114","115","116","117","118","119","120","121","122","123","124","125","126","127","128","129","130","131","132","133","134","135","136","205","206","207","208","209","210","211","212","213","214","215","216","217","218","219","220","221","222","223","224","225","226","227","228","229","230","231","232","233","234","235","236","237","238","239"]};
+const V080_PRELOADED_BMS=['David Silvaloaso','Marcus Rivera','Darius Bruce','Columbus Wilson','Naomi Davis','Anthony LeCrone'];
+const DAILY_KEY=APP_KEY+'-daily-log-v1';
+const DAILY_ACTIVITIES=['Room Inspection','Check-In','Check-Out','Room Transfer','Escort','Maintenance / Work Order','Key Service','Lock Service','Common Area / Walkthrough','Property / Furniture','Appliance','Occupancy / Vacancy Verification','Resident Support','Leadership / Unit Coordination','Administrative','Other'];
+let dailyState=(()=>{try{return JSON.parse(localStorage.getItem(DAILY_KEY))||{entries:[],lastInspector:'',lastBuilding:''}}catch{return{entries:[],lastInspector:'',lastBuilding:''}}})();
+let checkoutPrefill=null;
+function dailySave(){localStorage.setItem(DAILY_KEY,JSON.stringify(dailyState))}
+function v080NormalizeSettings(){
+  state.settings.buildings=Object.keys(V080_PRELOADED_ROOMS).sort((a,b)=>Number(a)-Number(b)).join('\n');
+  const existing=managerList();
+  state.settings.buildingManagers=[...new Set([...V080_PRELOADED_BMS,...existing])].join('\n');
+  state.settings.bmAssignments='';
+  save();
+}
+function v080MakeBuilding(number,rooms){return{number:String(number),deckCount:Math.max(...rooms.map(r=>Number(String(r)[0])||1)),decks:[],spaces:rooms.map(room=>({id:`emh-${number}-${room}`,deck:Number(String(room)[0])||1,type:'Bedroom',designation:String(room)}))}}
+function v080EnsureQuarterly(){
+  qstate.criteria=qstate.criteria||{fail:[...Q_FAIL],nonfail:[...Q_NONFAIL]};
+  if(!Object.keys(qstate.buildings||{}).length){qstate.buildings={};Object.entries(V080_PRELOADED_ROOMS).forEach(([b,rs])=>qstate.buildings[b]=v080MakeBuilding(b,rs));qSave()}
+}
+v080NormalizeSettings();v080EnsureQuarterly();
+assignedManager=function(){return ''};
+
+const _v078_render=render;
+render=function(){
+  document.querySelectorAll('[data-route]').forEach(b=>b.classList.toggle('active',b.dataset.route===route));
+  app.innerHTML=route==='modules'?modulesView():route==='daily'?dailyLogView():route==='inspection'?inspectionView():route==='records'?recordsView():route==='quarterly'?quarterlyView():settingsView();
+  bind();
+};
+
+function checkoutUpcoming(){
+  const finals=new Set(state.records.filter(r=>r.type==='Check-Out'&&r.checkoutStage==='Final Inspection'&&r.checkoutCaseId).map(r=>r.checkoutCaseId));
+  return state.records.filter(r=>r.type==='Check-Out'&&r.checkoutStage==='Pre-Inspection'&&r.scheduledFinalDate&&r.checkoutCaseId&&!finals.has(r.checkoutCaseId)).sort((a,b)=>String(a.scheduledFinalDate).localeCompare(String(b.scheduledFinalDate)));
+}
+modulesView=function(){const pending=state.records.filter(r=>!r.emhUpdated).length,up=checkoutUpcoming();return`<section class="next-hero"><div class="next-hero-copy"><span class="next-badge">NEXT GENERATION · FUTENMA</span><h2>Ready for field operations</h2><p>Choose what you need. Daily Log is first for quick access, but nothing opens until you select it.</p></div><div class="runway-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></div></section><div class="home-pills next-actions"><button class="home-pill primary" data-action="open-daily"><span class="home-icon">⌁</span><span>Daily Log<small>Fast activity entry and twice-monthly reporting</small></span><b class="pill-arrow">›</b></button><button class="home-pill" data-action="start-type" data-id="Check-Out"><span class="home-icon">⇤</span><span>Check-Out<small>Pre-Inspection or Final Inspection</small></span><b class="pill-arrow">›</b></button><button class="home-pill" data-action="start-type" data-id="Check-In"><span class="home-icon">⇥</span><span>Check-In<small>Detailed room-condition inspection</small></span><b class="pill-arrow">›</b></button><button class="home-pill" data-action="open-quarterly"><span class="home-icon">◫</span><span>Inspections<small>20%, 100%, and Fire Inspection</small></span><b class="pill-arrow">›</b></button><button class="home-pill" data-action="start-type" data-id="Furniture-Issued"><span class="home-icon">▤</span><span>Furniture<small>Issued-item quantity and condition verification</small></span><b class="pill-arrow">›</b></button></div><div class="home-status next-status"><div class="status-head"><div><span class="status-kicker">TRANSFER STATUS</span><h3>Operational records</h3></div><span class="version-chip">v${esc(APP_VERSION)}</span></div><div class="status-grid"><div class="status-stat"><span>Completed</span><b>${state.records.length}</b></div><div class="status-stat"><span>Awaiting eMH</span><b>${pending}</b></div></div></div>${up.length?`<div class="card upcoming-card"><div class="page-head compact-head"><div><h3>Upcoming Final Inspections</h3><p>Pre-inspections waiting for final checkout.</p></div></div>${up.slice(0,8).map(r=>`<div class="record"><span><b>${fmtDate(r.scheduledFinalDate)} · Bldg ${esc(r.building)} Room ${esc(r.room)}</b><div class="record-meta">${esc(r.formFields?.residentName||'')} · Pre-inspection ${fmtDate(r.date)}</div></span><button class="button compact" data-action="start-final" data-id="${r.id}">Start Final</button></div>`).join('')}</div>`:''}`};
+inspectionView=function(){if(draft)return editorView();return`<div class="page-head"><div><h2>Inspection Forms</h2><p>Detailed resident inspections and the 20% / 100% program are kept separate.</p></div></div><div class="grid"><button class="card choice-card" data-action="start-type" data-id="Check-In"><b>Check-In</b><span>Pre-occupancy readiness</span></button><button class="card choice-card" data-action="start-type" data-id="Check-Out"><b>Check-Out</b><span>Pre or Final checkout inspection</span></button><button class="card choice-card" data-action="start-type" data-id="Furniture-Issued"><b>Furniture Issued Items</b><span>Inventory verification</span></button><button class="card choice-card" data-action="open-quarterly"><b>20% / 100% Inspection</b><span>Fast Pass/Fail program</span></button></div>`};
+
+const _v078_startView=startView;
+startView=function(type){
+  let html=_v078_startView(type);
+  if(type!=='Check-Out')return html;
+  const p=checkoutPrefill;
+  const stage=p?'Final Inspection':'Pre-Inspection';
+  const stageBlock=`<div class="field full checkout-stage-box"><label>Checkout inspection stage *</label><div class="segmented"><label><input type="radio" name="checkoutStage" value="Pre-Inspection" ${stage==='Pre-Inspection'?'checked':''}> <span>1 · PRE-INSPECTION</span></label><label><input type="radio" name="checkoutStage" value="Final Inspection" ${stage==='Final Inspection'?'checked':''}> <span>2 · FINAL INSPECTION</span></label></div></div><div class="field" id="scheduledFinalWrap"><label>Scheduled Final Inspection Date</label><input id="scheduledFinalDate" type="date" value="${esc(p?.scheduledFinalDate||'')}"><small>Used to place the room on the Upcoming Final Inspections list.</small></div><input id="checkoutCaseId" type="hidden" value="${esc(p?.checkoutCaseId||'')}">`;
+  html=html.replace('<div class="field"><label>Starting responses</label>',stageBlock+'<div class="field"><label>Starting responses</label>');
+  if(p){
+    html=html.replace('id="startBuilding" list="buildingList" required','id="startBuilding" list="buildingList" value="'+esc(p.building)+'" required');
+    html=html.replace('id="startRoom" required','id="startRoom" value="'+esc(p.room)+'" required');
+    html=html.replace('id="startInspector" list="managerList" value="'+esc(state.settings.inspector)+'"','id="startInspector" list="managerList" value="'+esc(p.inspector||'')+'"');
+    html=html.replace('id="startResidentName" value="NA"','id="startResidentName" value="'+esc(p.formFields?.residentName||'NA')+'"');
+  } else {html=html.replace('id="startInspector" list="managerList" value="'+esc(state.settings.inspector)+'"','id="startInspector" list="managerList" value=""')}
+  return html;
+};
+
+const _v078_beginInspection=beginInspection;
+beginInspection=function(){
+  const stage=document.querySelector('input[name="checkoutStage"]:checked')?.value||'';
+  const scheduled=val('scheduledFinalDate'),caseId=val('checkoutCaseId');
+  _v078_beginInspection();
+  if(draft?.type==='Check-Out'){
+    draft.checkoutStage=stage||'Pre-Inspection';
+    draft.checkoutCaseId=caseId||`COCASE-${draft.building}-${draft.room}-${Date.now()}`;
+    draft.scheduledFinalDate=draft.checkoutStage==='Pre-Inspection'?scheduled:'';
+    draft.finalReadiness=draft.finalReadiness||{personalPropertyRemoved:false,personalFurnitureRemoved:false,trashRemoved:false,deepCleanComplete:false};
+    saveDraft();render();
+  }
+  checkoutPrefill=null;
+};
+
+const _v078_editorView=editorView;
+editorView=function(){
+  let html=_v078_editorView();
+  if(draft?.type!=='Check-Out')return html;
+  const stage=draft.checkoutStage||'Pre-Inspection';
+  const info=`<div class="card checkout-process"><div class="process-line"><span class="process-step active">1</span><span class="process-bar"></span><span class="process-step ${stage==='Final Inspection'?'active':''}">2</span></div><div class="process-labels"><b>Pre-Inspection</b><b>Final Inspection</b></div><p class="small muted">${stage==='Pre-Inspection'?(draft.scheduledFinalDate?'Final scheduled '+fmtDate(draft.scheduledFinalDate):'Final date not yet scheduled'):'Final checkout requires personal property removed and the room deep cleaned.'}</p></div>`;
+  const readiness=stage==='Final Inspection'?`<div class="card final-readiness"><h3>Final Checkout Readiness</h3><p class="small muted">Complete these before the final room-condition inspection can be closed.</p>${[['personalPropertyRemoved','All personal property / gear removed'],['personalFurnitureRemoved','All personal furniture removed'],['trashRemoved','Trash and unwanted items removed'],['deepCleanComplete','Room deep cleaned']].map(([k,l])=>`<label class="readiness-check"><input type="checkbox" data-readiness="${k}" ${draft.finalReadiness?.[k]?'checked':''}> <span>${l}</span></label>`).join('')}</div>`:'';
+  return info+readiness+html;
+};
+
+const _v078_completeInspection=completeInspection;
+completeInspection=function(){
+  if(draft?.type==='Check-Out'&&draft.checkoutStage==='Final Inspection'){
+    const r=draft.finalReadiness||{};if(!r.personalPropertyRemoved||!r.personalFurnitureRemoved||!r.trashRemoved||!r.deepCleanComplete)return showDialog('Final checkout not ready','Confirm that all personal property/gear and personal furniture are removed, trash is removed, and the room is deep cleaned before completing the Final Inspection.');
+  }
+  _v078_completeInspection();
+};
+
+function qCriteria(){qstate.criteria=qstate.criteria||{fail:[...Q_FAIL],nonfail:[...Q_NONFAIL]};return qstate.criteria}
+qNewCycleDialog=function(){const bs=Object.values(qstate.buildings).filter(b=>(b.spaces||[]).length);if(!bs.length)return;showDialog('New 20% / 100% Inspection',`<div class="stack"><div class="form-grid"><div class="field"><label>Building Manager / Inspector *</label><input id="qcInspector" list="qBmList" required placeholder="Select or type name"><datalist id="qBmList">${managerList().map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div><div class="field"><label>Building *</label><select id="qcBuilding">${bs.sort((a,b)=>Number(a.number)-Number(b.number)).map(b=>`<option value="${esc(b.number)}">${esc(b.number)} · ${(b.spaces||[]).length} rooms</option>`).join('')}</select></div><div class="field"><label>Inspection Scope *</label><select id="qcScope"><option>20%</option><option>100%</option></select></div><div class="field"><label>Start date</label><input id="qcDate" type="date" value="${today()}"></div><div class="field"><label>Fiscal Year</label><input id="qcFY" value="${qFYDefault()}"></div><div class="field"><label>Quarter</label><select id="qcQ"><option>Q1</option><option>Q2</option><option>Q3</option><option>Q4</option></select></div></div><div class="notice"><b>No building setup required.</b><div class="small">The room roster is preloaded from the eMH source file. A 20% cycle automatically creates and locks a proportional random sample by deck.</div></div><button class="button full" id="qcCreate">Start Inspection</button></div>`);document.querySelector('#qcQ').value=qQuarterDefault();document.querySelector('#qcCreate').onclick=()=>{const building=val('qcBuilding'),inspector=val('qcInspector'),fy=val('qcFY').toUpperCase(),quarter=val('qcQ'),scope=val('qcScope'),b=qstate.buildings[building];if(!inspector)return showDialog('Building Manager required','Select the Building Manager / Inspector.');const snapshot=JSON.parse(JSON.stringify(b)),c={id:uid(),fy,quarter,scope,building,startDate:val('qcDate'),inspector,createdAt:new Date().toISOString(),inventorySnapshot:snapshot,commonSpacesNA:true,spaceIds:[],sampleDraft:[],sampleAccepted:false,substitutions:[]};if(scope==='100%'){c.spaceIds=snapshot.spaces.map(x=>x.id);c.sampleAccepted=true}else{const sample=qSample20(c);c.spaceIds=[...sample.bedIds];c.sampleDraft=[...sample.bedIds];c.sampleAccepted=true;c.sampleGeneratedAt=new Date().toISOString();c.sampleAcceptedAt=c.sampleGeneratedAt;c.sampleMethod='20% of actual eMH room roster, rounded up; proportional by deck; random within deck'}qstate.cycles.unshift(c);qSave();qcycleId=c.id;closeDialog();qscreen='cycle';render();window.scrollTo(0,0)}};
+
+qInspectView=function(){const c=qCycle(),b=qBuilding(c),sp=(b?.spaces||[]).find(x=>x.id===qspaceId);if(!c||!sp){qscreen='cycle';return qCycleView()}const old=qstate.inspections.find(x=>x.id===qeditId)||qstate.inspections.filter(x=>x.cycleId===c.id&&x.spaceId===sp.id).slice(-1)[0],fails=old?.failCriteria||[],nonfails=old?.nonFailCriteria||[],crit=qCriteria();const chips=(arr,kind,selected)=>arr.map(x=>`<label class="def-chip ${selected.includes(x)?'selected':''}"><input type="checkbox" data-q-${kind} value="${esc(x)}" ${selected.includes(x)?'checked':''}> <span>${esc(x)}</span></label>`).join('');return`<div class="page-head compact-head"><div><span class="badge">${esc(c.scope)} · ${esc(c.fy)} ${esc(c.quarter)}</span><h2>Room ${esc(qSpaceLabel(sp))}</h2><p>Building ${esc(c.building)} · ${esc(c.inspector)}</p></div><button class="button compact outline" data-action="q-back-cycle">Back</button></div><div class="card q-fast"><h3>Inspection Result</h3><div class="q-big-actions"><button class="button success" data-action="q-pass">✓ PASS & NEXT</button><button class="button danger" data-action="q-deficiency">⚠ DEFICIENCY</button></div><div id="qDefPanel" class="${fails.length||nonfails.length||old?.woRequired?'':'hidden'}"><h3>What did you identify?</h3><p class="small muted">Tap every condition that applies. You can select more than one.</p><h4 class="criteria-title fail-title">FAIL criteria</h4><div class="chip-grid">${chips(crit.fail,'fail',fails)}</div><h4 class="criteria-title condition-title">Pass with Condition</h4><div class="chip-grid">${chips(crit.nonfail,'nonfail',nonfails)}</div><div class="field"><label>Inspector comment (optional)</label><textarea id="qManualComment" placeholder="Add context only when the selected criteria do not fully explain the issue">${esc(old?.manualComment||'')}</textarea></div><label class="wo-toggle"><input id="qWO" type="checkbox" ${old?.woRequired?'checked':''}> <span>Work Order Required</span></label><div id="qWONoteWrap" class="field ${old?.woRequired?'':'hidden'}"><label>Repair Needed / Work Order Note *</label><textarea id="qWorkOrderNote" placeholder="State exactly what needs to be repaired or corrected">${esc(old?.workOrderNote||'')}</textarea></div><button class="button full" data-action="q-save-def">Save & Next Room</button></div></div>`};
+
+qSaveInspection=function(clean=false){const c=qCycle(),b=qBuilding(c),sp=(b?.spaces||[]).find(x=>x.id===qspaceId);if(!c||!sp)return;const fails=clean?[]:[...document.querySelectorAll('[data-q-fail]:checked')].map(x=>x.value),nonfails=clean?[]:[...document.querySelectorAll('[data-q-nonfail]:checked')].map(x=>x.value),manual=clean?'':val('qManualComment'),woRequired=clean?false:!!document.querySelector('#qWO')?.checked,workOrderNote=clean?'':val('qWorkOrderNote');if(!clean&&!fails.length&&!nonfails.length)return showDialog('Select a deficiency','Choose at least one Fail or Pass with Condition criterion.');if(woRequired&&!workOrderNote)return showDialog('Work Order note required','Describe what needs to be fixed before saving this room.');const result=qResult(fails,nonfails),existing=qstate.inspections.find(x=>x.id===qeditId)||qstate.inspections.find(x=>x.cycleId===c.id&&x.spaceId===sp.id),rec={id:existing?.id||uid(),cycleId:c.id,date:today(),building:c.building,spaceId:sp.id,space:qSpaceLabel(sp),spaceType:sp.type,location:qLoc(c.building,sp),inspector:c.inspector,result,failCriteria:fails,nonFailCriteria:nonfails,manualComment:manual,woRequired,workOrderNote,updatedAt:new Date().toISOString()};if(existing)Object.assign(existing,rec);else qstate.inspections.push(rec);let w=qstate.workOrders.find(w=>w.inspectionId===rec.id);if(woRequired){const data={cycleId:c.id,inspectionId:rec.id,building:c.building,space:rec.space,deficiency:[...fails,...nonfails].join('; '),manualComment:manual,workOrderNote,woNumber:w?.woNumber||'',status:w?.status||'Needs Submission',dateSubmitted:w?.dateSubmitted||'',dateCompleted:w?.dateCompleted||''};if(w)Object.assign(w,data);else qstate.workOrders.push({id:uid(),...data})}else qstate.workOrders=qstate.workOrders.filter(w=>w.inspectionId!==rec.id);qSave();qGoNext(sp.id)};
+
+const _v078_qCycleView=qCycleView;
+qCycleView=function(){let html=_v078_qCycleView();html=html.replace(/<button class="button compact secondary" data-action="q-inventory">Building Inventory<\/button>/g,'');html=html.replace(/<div class="card q-common-na-card">[\s\S]*?<\/div>/,'');if(qCycle()?.scope==='20%')html=html.replace(/<div class="card q-sample[\s\S]*?<\/div>\s*<div class="card q-space-browser">/,'<div class="card q-space-browser">');return html};
+
+qExportExcel=function(){const c=qCycle(),s=qStats(c);if(!c)return;const compiled=[['Building','Bedroom','PASS/FAIL','Comments','WO Required','Work Order Note'],...s.ins.map(r=>[r.building,r.location,r.result,[...(r.failCriteria||[]),...(r.nonFailCriteria||[]),r.manualComment].filter(Boolean).join('; '),r.woRequired?'Yes':'No',r.workOrderNote||''])];const detail=[['Building','Space','Location','PASS/FAIL','FAIL Criteria','PASS W/CONDITION Criteria','Inspector Comments','WO Required','Work Order Note','Inspector','Date'],...s.ins.map(r=>[r.building,r.space,r.location,r.result,(r.failCriteria||[]).join('; '),(r.nonFailCriteria||[]).join('; '),r.manualComment,r.woRequired?'Yes':'No',r.workOrderNote||'',r.inspector,r.date])];const deficiencies=[['Building','Room','Result','Deficiency Type','Deficiency','WO Required','Work Order Note','Inspector Comment'],...s.ins.flatMap(r=>[...(r.failCriteria||[]).map(x=>[r.building,r.space,r.result,'FAIL',x,r.woRequired?'Yes':'No',r.workOrderNote||'',r.manualComment||'']),...(r.nonFailCriteria||[]).map(x=>[r.building,r.space,r.result,'PASS W/CONDITION',x,r.woRequired?'Yes':'No',r.workOrderNote||'',r.manualComment||''])])];const wo=[['Building','Space','Deficiency','Work Order Note','Inspector Comments','WO Number','Status','Date Submitted','Date Completed'],...s.wo.map(w=>[w.building,w.space,w.deficiency,w.workOrderNote||'',w.manualComment,w.woNumber,w.status,w.dateSubmitted,w.dateCompleted])];download(`Quarterly-${c.fy}-${c.quarter}-${c.scope.replace('%','pct')}-Bldg-${c.building}.xlsx`,buildXlsx([{name:'COMPILED RESULTS',rows:compiled},{name:'INSPECTION DETAIL',rows:detail},{name:'DEFICIENCIES',rows:deficiencies},{name:'WORK ORDERS REQUIRED',rows:wo}]))};
+
+function dailyDefaultRange(){const d=new Date(),y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=d.getDate(),start=day<=15?`${y}-${m}-01`:`${y}-${m}-16`,end=day<=15?`${y}-${m}-15`:new Date(y,d.getMonth()+1,0).toISOString().slice(0,10);return{start,end}}
+function dailyLogView(){const range=dailyDefaultRange(),entries=[...dailyState.entries].sort((a,b)=>String(b.timestamp).localeCompare(String(a.timestamp)));return`<div class="page-head"><div><span class="badge">FAST ENTRY</span><h2>Daily Log</h2><p>Log the work once; use it later for twice-monthly reporting.</p></div></div><form id="dailyForm" class="card daily-form"><div class="form-grid"><div class="field"><label>Building Manager *</label><input id="dailyInspector" list="dailyBmList" value="${esc(dailyState.lastInspector||'')}" required><datalist id="dailyBmList">${managerList().map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div><div class="field"><label>Building *</label><input id="dailyBuilding" list="dailyBuildingList" value="${esc(dailyState.lastBuilding||'')}" required><datalist id="dailyBuildingList">${buildingList().map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div><div class="field"><label>Room / Area</label><input id="dailyRoom" placeholder="Room, lounge, laundry, exterior…"></div><div class="field"><label>Activity *</label><input id="dailyActivity" list="dailyActivityList" required placeholder="Type or select"><datalist id="dailyActivityList">${DAILY_ACTIVITIES.map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div></div><div class="field"><label>Estimated Duration *</label><div class="duration-chips">${[['5','5 min'],['10','10 min'],['15','15 min'],['30','30 min'],['45','45 min'],['60','1 hr'],['90','1.5 hr'],['120','2 hr+']].map(([v,l])=>`<label><input type="radio" name="dailyDuration" value="${v}" ${v==='15'?'checked':''}><span>${l}</span></label>`).join('')}</div></div><div class="field"><label>Note</label><textarea id="dailyNote" placeholder="Short operational note"></textarea></div><label class="highlight-toggle"><input id="dailyHighlight" type="checkbox"> <span>★ Highlight for twice-monthly summary</span></label><div class="actions"><button class="button" type="submit" data-daily-mode="save">Save</button><button class="button secondary" type="submit" data-daily-mode="another">Save & Add Another</button></div></form><div class="card"><h3>Twice-Monthly Report</h3><div class="form-grid"><div class="field"><label>From</label><input id="dailyFrom" type="date" value="${range.start}"></div><div class="field"><label>Through</label><input id="dailyThrough" type="date" value="${range.end}"></div></div><div class="actions"><button class="button secondary" data-action="daily-export">Export CSV</button><button class="button outline" data-action="daily-copy-summary">Copy Summary</button></div></div><div class="card"><h3>Recent Entries</h3>${entries.length?entries.slice(0,20).map(e=>`<div class="record"><span><b>${new Date(e.timestamp).toLocaleString()} · Bldg ${esc(e.building)} ${esc(e.roomArea||'')}</b><div class="record-meta">${esc(e.activity)} · ${e.durationMinutes} min${e.highlight?' · ★ Highlight':''}<br>${esc(e.note||'')}</div></span><button class="q-icon-btn danger-icon" data-action="daily-delete" data-id="${e.id}">🗑️</button></div>`).join(''):'<div class="empty">No Daily Log entries yet.</div>'}</div>`}
+function dailyPeriodEntries(){const f=val('dailyFrom'),t=val('dailyThrough');return dailyState.entries.filter(e=>{const d=String(e.timestamp).slice(0,10);return(!f||d>=f)&&(!t||d<=t)})}
+function dailyCsv(){const rows=[['Timestamp','Building Manager','Building','Room / Area','Activity','Duration Minutes','Note','Highlight'],...dailyPeriodEntries().map(e=>[e.timestamp,e.inspector,e.building,e.roomArea,e.activity,e.durationMinutes,e.note,e.highlight?'Yes':'No'])];return rows.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\r\n')}
+function dailySummary(){const es=dailyPeriodEntries(),by={},mins=es.reduce((n,e)=>n+(Number(e.durationMinutes)||0),0);es.forEach(e=>{by[e.activity]=(by[e.activity]||0)+1});const f=val('dailyFrom'),t=val('dailyThrough'),high=es.filter(e=>e.highlight);return[`UH Building Manager Activity Summary · ${f||'Start'} through ${t||'Present'}`,`${es.length} actions · ${(mins/60).toFixed(1)} estimated hours · ${new Set(es.map(e=>e.building)).size} buildings supported`,'',...Object.entries(by).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k}: ${v}`),...(high.length?['','Significant Actions:',...high.map(e=>`- Bldg ${e.building} ${e.roomArea||''} · ${e.activity}: ${e.note||'Highlighted activity'}`)]:[])].join('\n')}
+
+const _v078_settingsView=settingsView;
+settingsView=function(){const crit=qCriteria();return`<div class="page-head"><div><h2>Settings</h2><p>Team roster, inspection criteria, updates, and local data.</p></div></div><div class="stack"><form id="settingsForm" class="card form-grid"><div class="field"><label>Installation</label><input id="setInstallation" value="${esc(state.settings.installation)}"></div><div class="field"><label>Installation code</label><input id="setInstallationCode" value="${esc(state.settings.installationCode||'FT')}" maxlength="4"></div><div class="field full"><label>Building Managers</label><textarea id="setBuildingManagers" class="roster-input">${esc(state.settings.buildingManagers||'')}</textarea><p class="small muted">One name per line. Buildings are not permanently assigned to a BM.</p></div><div class="field full"><label>Preloaded Buildings</label><textarea id="setBuildings" class="roster-input" readonly>${esc(state.settings.buildings||'')}</textarea><p class="small muted">Room rosters are preloaded from the eMH source workbook.</p></div><input id="setInspector" type="hidden" value="${esc(state.settings.inspector||'')}"><input id="setBmAssignments" type="hidden" value=""><div class="field full"><label>20% / 100% — FAIL Criteria</label><textarea id="setQFail" class="criteria-editor">${esc(crit.fail.join('\n'))}</textarea><p class="small muted">One criterion per line. Changes apply to new inspections; completed records retain their selected text.</p></div><div class="field full"><label>20% / 100% — PASS W/CONDITION Criteria</label><textarea id="setQNonfail" class="criteria-editor">${esc(crit.nonfail.join('\n'))}</textarea></div><div class="field full"><button class="button" type="submit">Save Settings</button></div></form><div class="card update-card"><h3>App Update</h3><p class="small muted">Installed version: <b>${esc(APP_VERSION)}</b>. Updates are delivered through the installed web app.</p><button class="button secondary" data-action="check-update">Check for Update</button></div><div class="card"><h3>Local Data</h3><p class="small muted">Export a JSON backup before changing devices or clearing browser data.</p><div class="actions"><button class="button" data-action="export-all">Export Detailed Inspections Excel</button><button class="button secondary" data-action="backup">Export JSON Backup</button><label class="button outline" style="cursor:pointer">Import JSON Backup<input id="restoreBackup" type="file" accept="application/json,.json" hidden></label><button class="button danger" data-action="clear-data">Erase All Data</button></div></div></div>`};
+
+const _v078_bind=bind;
+bind=function(){_v078_bind();
+  document.querySelectorAll('input[name="checkoutStage"]').forEach(x=>x.onchange=()=>{const w=document.querySelector('#scheduledFinalWrap');if(w)w.classList.toggle('hidden',x.checked&&x.value==='Final Inspection')});
+  const stage=document.querySelector('input[name="checkoutStage"]:checked');if(stage?.value==='Final Inspection')document.querySelector('#scheduledFinalWrap')?.classList.add('hidden');
+  document.querySelectorAll('[data-readiness]').forEach(x=>x.onchange=()=>{draft.finalReadiness=draft.finalReadiness||{};draft.finalReadiness[x.dataset.readiness]=x.checked;saveDraft()});
+  document.querySelectorAll('.def-chip input').forEach(x=>x.onchange=()=>x.closest('.def-chip')?.classList.toggle('selected',x.checked));
+  const wo=document.querySelector('#qWO');if(wo)wo.onchange=()=>document.querySelector('#qWONoteWrap')?.classList.toggle('hidden',!wo.checked);
+  const sf=document.querySelector('#settingsForm');if(sf)sf.onsubmit=e=>{e.preventDefault();state.settings.installation=val('setInstallation');state.settings.installationCode=(val('setInstallationCode')||'FT').toUpperCase();state.settings.buildings=document.querySelector('#setBuildings')?.value.trim()||state.settings.buildings;state.settings.buildingManagers=document.querySelector('#setBuildingManagers')?.value.trim()||'';state.settings.inspector='';state.settings.bmAssignments='';const f=document.querySelector('#setQFail'),n=document.querySelector('#setQNonfail');if(f&&n)qstate.criteria={fail:settingsList(f.value),nonfail:settingsList(n.value)};save();qSave();showDialog('Settings saved','Team roster and 20% / 100% criteria were updated.');render()};
+  const df=document.querySelector('#dailyForm');if(df){let mode='save';df.querySelectorAll('button[type="submit"]').forEach(b=>b.onclick=()=>mode=b.dataset.dailyMode||'save');df.onsubmit=e=>{e.preventDefault();const inspector=val('dailyInspector'),building=val('dailyBuilding'),activity=val('dailyActivity'),dur=Number(document.querySelector('input[name="dailyDuration"]:checked')?.value||0);if(!inspector||!building||!activity||!dur)return showDialog('Daily Log incomplete','Select the BM, building, activity, and duration.');dailyState.entries.push({id:uid(),timestamp:new Date().toISOString(),inspector,building,roomArea:val('dailyRoom'),activity,durationMinutes:dur,note:val('dailyNote'),highlight:!!document.querySelector('#dailyHighlight')?.checked});dailyState.lastInspector=inspector;dailyState.lastBuilding=building;dailySave();render();if(mode==='another'){setTimeout(()=>{document.querySelector('#dailyActivity')?.focus()},0)}}}
+};
+
+const _v078_action=action;
+action=function(name,id){
+  if(name==='open-daily'){route='daily';render();window.scrollTo(0,0);return}
+  if(name==='start-final'){const pre=state.records.find(r=>r.id===id);if(!pre)return;checkoutPrefill=pre;pendingType='Check-Out';app.innerHTML=startView('Check-Out');bind();window.scrollTo(0,0);return}
+  if(name==='daily-delete'){if(confirm('Delete this Daily Log entry?')){dailyState.entries=dailyState.entries.filter(x=>x.id!==id);dailySave();render()}return}
+  if(name==='daily-export'){download(`UH-Daily-Log-${val('dailyFrom')||today()}-through-${val('dailyThrough')||today()}.csv`,new Blob([dailyCsv()],{type:'text/csv;charset=utf-8'}));return}
+  if(name==='daily-copy-summary'){const text=dailySummary();navigator.clipboard?.writeText(text).then(()=>showDialog('Summary copied','The twice-monthly summary was copied to the clipboard.')).catch(()=>showDialog('Twice-Monthly Summary',`<pre class="summary-preview">${esc(text)}</pre><div class="actions"><button class="button secondary" id="closeDialog">Close</button></div>`));return}
+  _v078_action(name,id);
+};
+
+const _v078_restore=restoreFullBackup;
+restoreFullBackup=async function(file){if(!file)return;try{const data=JSON.parse(await file.text());if(data.backupType==='UHFieldAppFull')state={...emptyState(),...(data.core||{}),settings:{...emptyState().settings,...(data.core?.settings||{}),bmAssignments:''}};else state={...emptyState(),...data,settings:{...emptyState().settings,...(data.settings||{}),bmAssignments:''}};v080NormalizeSettings();qstate=qEmpty();qstate.criteria={fail:[...Q_FAIL],nonfail:[...Q_NONFAIL]};qstate.buildings={};Object.entries(V080_PRELOADED_ROOMS).forEach(([b,rs])=>qstate.buildings[b]=v080MakeBuilding(b,rs));qSave();save();showDialog('Backup restored','Detailed inspection history was restored. The 20% / 100% program starts fresh with the preloaded eMH room rosters.');render()}catch{showDialog('Restore failed','The selected JSON file could not be restored.')}};
+
+// Refresh once after all draft overrides are loaded.
+render();
+
+// v0.8 draft backup/clear behavior: include Daily Log; keep Quarterly fresh only when importing a legacy backup.
+exportFullBackup=function(){
+  qstate.lastBackup=new Date().toISOString();qSave();dailySave();
+  download(`UH-field-next-backup-${today()}.json`,new Blob([JSON.stringify({backupType:'UHFieldAppFull',schemaVersion:2,appVersion:APP_VERSION,core:state,quarterly:qstate,daily:dailyState},null,2)],{type:'application/json'}));
+};
+const _v080_restoreLegacy=restoreFullBackup;
+restoreFullBackup=async function(file){
+  if(!file)return;
+  try{
+    const data=JSON.parse(await file.text());
+    if(data.backupType==='UHFieldAppFull'){
+      state={...emptyState(),...(data.core||{}),settings:{...emptyState().settings,...(data.core?.settings||{}),bmAssignments:''}};
+      dailyState=data.daily||{entries:[],lastInspector:'',lastBuilding:''};
+    }else{
+      state={...emptyState(),...data,settings:{...emptyState().settings,...(data.settings||{}),bmAssignments:''}};
+      dailyState={entries:[],lastInspector:'',lastBuilding:''};
+    }
+    v080NormalizeSettings();
+    // User requested a fresh 20% / 100% program, so legacy quarterly history is intentionally not restored.
+    qstate=qEmpty();qstate.criteria={fail:[...Q_FAIL],nonfail:[...Q_NONFAIL]};qstate.buildings={};
+    Object.entries(V080_PRELOADED_ROOMS).forEach(([b,rs])=>qstate.buildings[b]=v080MakeBuilding(b,rs));
+    qSave();dailySave();save();
+    showDialog('Backup restored','Detailed inspection history and Daily Log data were restored when present. The 20% / 100% program starts fresh with the preloaded eMH room rosters.');render();
+  }catch{showDialog('Restore failed','The selected JSON file could not be restored.')}
+};
+clearData=function(){
+  if(!confirm('Erase all local detailed inspections, Daily Log entries, and 20% / 100% inspection data? Export a backup first.'))return;
+  if(!confirm('Final confirmation: erase all local app data on this device?'))return;
+  [APP_KEY,DRAFT_KEY,Q_KEY,DAILY_KEY].forEach(k=>localStorage.removeItem(k));
+  state=emptyState();draft=null;dailyState={entries:[],lastInspector:'',lastBuilding:''};qstate=qEmpty();qstate.criteria={fail:[...Q_FAIL],nonfail:[...Q_NONFAIL]};qstate.buildings={};Object.entries(V080_PRELOADED_ROOMS).forEach(([b,rs])=>qstate.buildings[b]=v080MakeBuilding(b,rs));qSave();render();
+};
+
+// Final draft refinements.
+const _v080_startView2=startView;
+startView=function(type){
+  let html=_v080_startView2(type);
+  if(type!=='Check-Out'){
+    // Team build: do not assign a BM simply because a building was selected.
+    html=html.replace(/id="startInspector" list="managerList" value="[^"]*"/,'id="startInspector" list="managerList" value=""');
+  }
+  return html;
+};
+const _v080_beginInspection2=beginInspection;
+beginInspection=function(){
+  const scheduledBefore=val('scheduledFinalDate');
+  _v080_beginInspection2();
+  if(draft?.type==='Check-Out'&&draft.checkoutStage==='Final Inspection'&&scheduledBefore){draft.scheduledFinalDate=scheduledBefore;saveDraft()}
+};
+const _v078_qDashboardView=qDashboardView;
+qDashboardView=function(){
+  let html=_v078_qDashboardView();
+  html=html.replace(/<button class="button compact secondary" data-action="q-inventory">Building Inventory<\/button>/g,'');
+  html=html.replace('No quarterly cycles yet. Configure a building, then start a 20% or 100% cycle.','No 20% / 100% inspections yet. Select New Cycle to begin; room rosters are already preloaded.');
+  html=html.replace(/Quarterly Inspection/g,'20% / 100% Inspection');
+  return html;
+};
+qExportCombined=function(ids){
+ const cycles=ids.map(id=>qstate.cycles.find(c=>c.id===id)).filter(Boolean);if(!cycles.length)return;
+ const key=c=>`${c.fy}|${c.quarter}|${c.scope}`,k=key(cycles[0]);if(cycles.some(c=>key(c)!==k))return showDialog('Cannot combine cycles','Combined export requires the same FY, Quarter, and inspection type.');
+ cycles.sort((a,b)=>String(a.building).localeCompare(String(b.building),undefined,{numeric:true}));
+ const compiled=[['Building','Bedroom','PASS/FAIL','Comments','WO Required','Work Order Note']],detail=[['Building','Space','Location','PASS/FAIL','FAIL Criteria','PASS W/CONDITION Criteria','Inspector Comments','WO Required','Work Order Note','Inspector','Date']],deficiencies=[['Building','Room','Result','Deficiency Type','Deficiency','WO Required','Work Order Note','Inspector Comment']],wo=[['Building','Space','Deficiency','Work Order Note','Inspector Comments','WO Number','Status','Date Submitted','Date Completed']];
+ const summary=[['Building','Required','Inspected','Remaining','PASS','PASS W/CONDITION','FAIL','WO Required','Open WO','% Complete']];
+ let totals={required:0,done:0,remaining:0,pass:0,cond:0,fail:0,wo:0,open:0};
+ cycles.forEach(c=>{const st=qStats(c),ins=[...st.ins].sort((a,b)=>String(a.location).localeCompare(String(b.location),undefined,{numeric:true})),wos=qstate.workOrders.filter(w=>w.cycleId===c.id);ins.forEach(r=>{compiled.push([r.building,r.location,r.result,[...(r.failCriteria||[]),...(r.nonFailCriteria||[]),r.manualComment].filter(Boolean).join('; '),r.woRequired?'Yes':'No',r.workOrderNote||'']);detail.push([r.building,r.space,r.location,r.result,(r.failCriteria||[]).join('; '),(r.nonFailCriteria||[]).join('; '),r.manualComment,r.woRequired?'Yes':'No',r.workOrderNote||'',r.inspector,r.date]);(r.failCriteria||[]).forEach(x=>deficiencies.push([r.building,r.space,r.result,'FAIL',x,r.woRequired?'Yes':'No',r.workOrderNote||'',r.manualComment||'']));(r.nonFailCriteria||[]).forEach(x=>deficiencies.push([r.building,r.space,r.result,'PASS W/CONDITION',x,r.woRequired?'Yes':'No',r.workOrderNote||'',r.manualComment||'']))});wos.forEach(w=>wo.push([w.building,w.space,w.deficiency,w.workOrderNote||'',w.manualComment,w.woNumber,w.status,w.dateSubmitted,w.dateCompleted]));const woReq=ins.filter(r=>r.woRequired).length,open=wos.filter(w=>w.status!=='Closed').length,pct=st.required?Math.round(st.done/st.required*100):0;summary.push([c.building,st.required,st.done,st.remaining,st.pass,st.cond,st.fail,woReq,open,pct+'%']);totals.required+=st.required;totals.done+=st.done;totals.remaining+=st.remaining;totals.pass+=st.pass;totals.cond+=st.cond;totals.fail+=st.fail;totals.wo+=woReq;totals.open+=open});
+ const overallPct=totals.required?Math.round(totals.done/totals.required*100):0;summary.push(['OVERALL',totals.required,totals.done,totals.remaining,totals.pass,totals.cond,totals.fail,totals.wo,totals.open,overallPct+'%']);
+ const [fy,q,scope]=k.split('|'),bldgs=cycles.map(c=>c.building).join('-');download(`Quarterly-${fy}-${q}-${scope.replace('%','pct')}-Combined-${bldgs}.xlsx`,buildXlsx([{name:'SUMMARY',rows:summary},{name:'COMPILED RESULTS',rows:compiled},{name:'INSPECTION DETAIL',rows:detail},{name:'DEFICIENCIES',rows:deficiencies},{name:'WORK ORDERS REQUIRED',rows:wo}]))
+};
+
+/* ===== v0.8.1 COMMON AREA INSPECTION DRAFT ===== */
+const COMMON_AREA_TYPES=['Lounge / Common Area','Common Bathroom','Laundry Room','Hallway / Egress','Stairwell','Entrance / Lobby','Kitchen Area','Game Room','TV Room','Linen Closet','Janitor Closet','Storage Room','Office','Mechanical / Utility Room','Exterior / Grounds','Other'];
+function qCommonSpaces(c){return (qBuilding(c)?.spaces||[]).filter(x=>x.type!=='Bedroom')}
+function qAddCommonAreaDialog(){
+ const c=qCycle(); if(!c)return;
+ showDialog('Add Common / Support Area',`<div class="stack"><p class="small muted">Add only the area you are inspecting. This does not change the eMH room roster.</p><div class="form-grid"><div class="field"><label>Area Type *</label><select id="qCommonType">${COMMON_AREA_TYPES.map(x=>`<option>${esc(x)}</option>`).join('')}</select></div><div class="field"><label>Deck / Floor</label><input id="qCommonDeck" inputmode="numeric" placeholder="1, 2, 3…"></div><div class="field full"><label>Area Name / Location *</label><input id="qCommonName" placeholder="Example: 2nd Deck Laundry, East Stairwell, Main Entrance"></div></div><button class="button full" id="qCommonAddSave">Add to This Inspection</button></div>`);
+ document.querySelector('#qCommonAddSave').onclick=()=>{const type=val('qCommonType'),name=val('qCommonName').trim(),deck=val('qCommonDeck').trim();if(!name)return showDialog('Area name required','Enter the common/support area or location.');const b=qBuilding(c),sp={id:'common-'+uid(),deck:deck?Number(deck)||deck:'',type,designation:name,cycleAdded:true};b.spaces.push(sp);c.spaceIds=c.spaceIds||[];if(!c.spaceIds.includes(sp.id))c.spaceIds.push(sp.id);c.commonSpacesNA=false;qSave();closeDialog();render();window.scrollTo(0,0)};
+}
+function qRemoveCommonArea(id){const c=qCycle(),b=qBuilding(c);if(!c||!b)return;const sp=(b.spaces||[]).find(x=>x.id===id);if(!sp||sp.type==='Bedroom')return;const has=qstate.inspections.some(x=>x.cycleId===c.id&&x.spaceId===id);if(has)return showDialog('Inspection already recorded','Delete the inspection record first before removing this common area.');if(!confirm(`Remove ${qSpaceLabel(sp)} from this inspection?`))return;b.spaces=b.spaces.filter(x=>x.id!==id);c.spaceIds=(c.spaceIds||[]).filter(x=>x!==id);qSave();render()}
+const _v081_qCycleView=qCycleView;
+qCycleView=function(){
+ let html=_v081_qCycleView();const c=qCycle();if(!c)return html;const common=qCommonSpaces(c);
+ const manager=`<div class="card"><div class="page-head compact-head"><div><h3>Common / Support Areas</h3><p>Inspect lounges, laundry rooms, common bathrooms, hallways/egress, stairwells, entrances, storage and other shared spaces.</p></div><button class="button compact secondary" data-action="q-add-common-area">+ Add Common Area</button></div>${common.length?common.map(sp=>`<div class="record"><span><b>${esc(qSpaceLabel(sp))}</b><div class="record-meta">${esc(sp.type)}${sp.deck?` · Deck ${esc(sp.deck)}`:''}</div></span><span class="q-row-actions"><button class="button compact" data-action="q-inspect-space" data-id="${sp.id}">Inspect</button>${sp.cycleAdded?`<button class="q-icon-btn danger-icon" data-action="q-remove-common-area" data-id="${sp.id}" title="Remove area">🗑️</button>`:''}</span></div>`).join(''):'<div class="empty">No common/support areas added yet.</div>'}</div>`;
+ const marker='<div class="card q-space-browser">';
+ if(html.includes(marker))html=html.replace(marker,manager+marker);else html+=manager;
+ return html;
+};
+const _v081_qInspectView=qInspectView;
+qInspectView=function(){let html=_v081_qInspectView();const c=qCycle(),sp=(qBuilding(c)?.spaces||[]).find(x=>x.id===qspaceId);if(sp&&sp.type!=='Bedroom')html=html.replace(`<h2>Room ${esc(qSpaceLabel(sp))}</h2>`,`<h2>${esc(qSpaceLabel(sp))}</h2>`).replace(/Save & Next Room/g,'Save & Next Area');return html};
+const _v081_action=action;
+action=function(name,id){if(name==='q-add-common-area')return qAddCommonAreaDialog();if(name==='q-remove-common-area')return qRemoveCommonArea(id);return _v081_action(name,id)};
+
+
+/* ===== v0.8.2 FIELD WORKFLOW REFINEMENTS ===== */
+const V082_COMMON_AREAS=['Lounge / Common Area','Common Bathroom','Laundry Room','Hallway / Egress','Stairwell','Entrance / Lobby','Kitchen Area','Game Room','TV Room','Linen Closet','Janitor Closet','Storage Room','Office','Mechanical / Utility Room','Exterior / Grounds'];
+function v082LoadCommonAreas(c){
+  const b=qBuilding(c); if(!b)return [];
+  const existing=new Set((b.spaces||[]).filter(x=>x.type!=='Bedroom').map(x=>x.type));
+  const added=[];
+  for(const type of V082_COMMON_AREAS){
+    if(existing.has(type))continue;
+    const sp={id:'std-common-'+uid(),deck:'',type,designation:type,cycleStandard:true};
+    b.spaces.push(sp);added.push(sp.id);existing.add(type);
+  }
+  return added;
+}
+
+// Building Inspections now contains 20%, 100%, and Fire Inspection.
+qNewCycleDialog=function(){
+ const bs=Object.values(qstate.buildings).filter(b=>(b.spaces||[]).length);if(!bs.length)return;
+ showDialog('New Building Inspection',`<div class="stack"><div class="form-grid"><div class="field"><label>Building Manager / Inspector *</label><input id="qcInspector" list="qBmList" required placeholder="Select or type name"><datalist id="qBmList">${managerList().map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div><div class="field"><label>Building *</label><select id="qcBuilding">${bs.sort((a,b)=>Number(a.number)-Number(b.number)).map(b=>`<option value="${esc(b.number)}">${esc(b.number)} · ${(b.spaces||[]).length} rooms</option>`).join('')}</select></div><div class="field"><label>Inspection Type *</label><select id="qcScope"><option value="20%">20% Inspection</option><option value="100%">100% Inspection</option><option value="FIRE">Fire Inspection</option></select></div><div class="field"><label>Start date</label><input id="qcDate" type="date" value="${today()}"></div><div class="field"><label>Fiscal Year</label><input id="qcFY" value="${qFYDefault()}"></div><div class="field"><label>Quarter</label><select id="qcQ"><option>Q1</option><option>Q2</option><option>Q3</option><option>Q4</option></select></div></div><div class="notice"><b>Rooms and common areas load automatically.</b><div class="small">20% samples actual eMH rooms and also loads the standard common-area list. 100% loads all rooms and common areas. Fire Inspection uses the same building-inspection workspace with the standard common-area list.</div></div><button class="button full" id="qcCreate">Start Inspection</button></div>`);
+ document.querySelector('#qcQ').value=qQuarterDefault();
+ document.querySelector('#qcCreate').onclick=()=>{
+   const building=val('qcBuilding'),inspector=val('qcInspector'),fy=val('qcFY').toUpperCase(),quarter=val('qcQ'),scope=val('qcScope'),b=qstate.buildings[building];
+   if(!inspector)return showDialog('Building Manager required','Select the Building Manager / Inspector.');
+   const snapshot=JSON.parse(JSON.stringify(b)),c={id:uid(),fy,quarter,scope,building,startDate:val('qcDate'),inspector,createdAt:new Date().toISOString(),inventorySnapshot:snapshot,commonSpacesNA:false,spaceIds:[],sampleDraft:[],sampleAccepted:false,substitutions:[]};
+   const commonIds=v082LoadCommonAreas(c);
+   const allCommon=(c.inventorySnapshot.spaces||[]).filter(x=>x.type!=='Bedroom').map(x=>x.id);
+   if(scope==='100%'){
+      c.spaceIds=(c.inventorySnapshot.spaces||[]).map(x=>x.id);c.sampleAccepted=true;
+   }else if(scope==='FIRE'){
+      c.spaceIds=[...allCommon];c.sampleAccepted=true;
+   }else{
+      const sample=qSample20(c);c.spaceIds=[...sample.bedIds,...allCommon];c.sampleDraft=[...sample.bedIds];c.sampleAccepted=true;c.sampleGeneratedAt=new Date().toISOString();c.sampleAcceptedAt=c.sampleGeneratedAt;c.sampleMethod='20% of actual eMH room roster, rounded up; proportional by deck; random within deck; standard common areas loaded automatically';
+   }
+   qstate.cycles.unshift(c);qSave();qcycleId=c.id;closeDialog();qscreen='cycle';render();window.scrollTo(0,0);
+ };
+};
+
+// Replace the add-one-common-area workflow with the auto-loaded common-area checklist.
+qCycleView=function(){
+ let html=_v081_qCycleView();const c=qCycle();if(!c)return html;
+ html=html.replace(/<button class="button compact secondary" data-action="q-inventory">Building Inventory<\/button>/g,'');
+ html=html.replace(/<div class="card q-common-na-card">[\s\S]*?<\/div>/,'');
+ html=html.replace(/Quarterly Inspection/g,'Building Inspections').replace(/20% \/ 100% program/g,'20% · 100% · Fire Inspection');
+ if(c.scope==='20%')html=html.replace(/<div class="card q-sample[\s\S]*?<\/div>\s*<div class="card q-space-browser">/,'<div class="card q-space-browser">');
+ return html;
+};
+
+// Common areas get PASS / DEFICIENCY / N/A and an always-available note.
+qInspectView=function(){
+ let html=_v081_qInspectView();const c=qCycle(),sp=(qBuilding(c)?.spaces||[]).find(x=>x.id===qspaceId);if(!c||!sp)return html;
+ if(sp.type!=='Bedroom'){
+   const old=qstate.inspections.find(x=>x.id===qeditId)||qstate.inspections.filter(x=>x.cycleId===c.id&&x.spaceId===sp.id).slice(-1)[0];
+   html=html.replace(`<h2>Room ${esc(qSpaceLabel(sp))}</h2>`,`<h2>${esc(qSpaceLabel(sp))}</h2>`);
+   html=html.replace('<div class="q-big-actions"><button class="button success" data-action="q-pass">✓ PASS & NEXT</button><button class="button danger" data-action="q-deficiency">⚠ DEFICIENCY</button></div>',`<div class="q-big-actions"><button class="button success" data-action="q-pass">✓ PASS & NEXT</button><button class="button danger" data-action="q-deficiency">⚠ DEFICIENCY</button><button class="button secondary" data-action="q-na">N/A · DOES NOT EXIST</button></div><div class="field"><label>Area Note (optional)</label><textarea id="qCommonNote" placeholder="Location detail, condition note, or reason for N/A">${esc(old?.manualComment||'')}</textarea></div>`);
+   html=html.replace(/Save & Next Room/g,'Save & Next Area');
+ }
+ return html;
+};
+
+const _v082_qSaveInspection=qSaveInspection;
+qSaveInspection=function(clean=false){
+  const c=qCycle(),sp=(qBuilding(c)?.spaces||[]).find(x=>x.id===qspaceId);
+  if(clean&&sp&&sp.type!=='Bedroom'){
+    const note=val('qCommonNote');
+    const existing=qstate.inspections.find(x=>x.id===qeditId)||qstate.inspections.find(x=>x.cycleId===c.id&&x.spaceId===sp.id);
+    const rec={id:existing?.id||uid(),cycleId:c.id,date:today(),building:c.building,spaceId:sp.id,space:qSpaceLabel(sp),spaceType:sp.type,location:qLoc(c.building,sp),inspector:c.inspector,result:'PASS',failCriteria:[],nonFailCriteria:[],manualComment:note,woRequired:false,workOrderNote:'',updatedAt:new Date().toISOString()};
+    if(existing)Object.assign(existing,rec);else qstate.inspections.push(rec);qstate.workOrders=qstate.workOrders.filter(w=>w.inspectionId!==rec.id);qSave();return qGoNext(sp.id);
+  }
+  return _v082_qSaveInspection(clean);
+};
+function v082SaveNA(){
+ const c=qCycle(),sp=(qBuilding(c)?.spaces||[]).find(x=>x.id===qspaceId);if(!c||!sp)return;
+ const existing=qstate.inspections.find(x=>x.id===qeditId)||qstate.inspections.find(x=>x.cycleId===c.id&&x.spaceId===sp.id);
+ const rec={id:existing?.id||uid(),cycleId:c.id,date:today(),building:c.building,spaceId:sp.id,space:qSpaceLabel(sp),spaceType:sp.type,location:qLoc(c.building,sp),inspector:c.inspector,result:'N/A',failCriteria:[],nonFailCriteria:[],manualComment:val('qCommonNote'),woRequired:false,workOrderNote:'',updatedAt:new Date().toISOString()};
+ if(existing)Object.assign(existing,rec);else qstate.inspections.push(rec);qstate.workOrders=qstate.workOrders.filter(w=>w.inspectionId!==rec.id);qSave();qGoNext(sp.id);
+}
+
+// Simple phone-to-desktop sync package: export everything, then merge by record ID on the desktop.
+function v082SyncExport(){
+ qSave();dailySave();save();
+ const data={syncType:'UHFieldSync',schemaVersion:1,appVersion:APP_VERSION,exportedAt:new Date().toISOString(),coreRecords:state.records||[],dailyEntries:dailyState.entries||[],quarterly:{cycles:qstate.cycles||[],inspections:qstate.inspections||[],workOrders:qstate.workOrders||[],criteria:qstate.criteria||null},settings:{buildingManagers:state.settings.buildingManagers||'',installation:state.settings.installation||'',installationCode:state.settings.installationCode||'FT'}};
+ download(`UH-Field-Desktop-Sync-${today()}.json`,new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+}
+function v082MergeById(a,b){const m=new Map((a||[]).map(x=>[x.id,x]));for(const x of (b||[])){if(!x?.id)continue;const old=m.get(x.id);m.set(x.id,!old||String(x.updatedAt||x.completedAt||x.timestamp||'')>=String(old.updatedAt||old.completedAt||old.timestamp||'')?x:old)}return [...m.values()]}
+async function v082SyncImport(file){
+ if(!file)return;try{const d=JSON.parse(await file.text());if(d.syncType!=='UHFieldSync')throw Error('Not a sync package');
+ state.records=v082MergeById(state.records,d.coreRecords);dailyState.entries=v082MergeById(dailyState.entries,d.dailyEntries);if(d.settings?.buildingManagers)state.settings.buildingManagers=d.settings.buildingManagers;
+ qstate.cycles=v082MergeById(qstate.cycles,d.quarterly?.cycles);qstate.inspections=v082MergeById(qstate.inspections,d.quarterly?.inspections);qstate.workOrders=v082MergeById(qstate.workOrders,d.quarterly?.workOrders);if(d.quarterly?.criteria)qstate.criteria=d.quarterly.criteria;
+ save();dailySave();qSave();showDialog('Desktop sync complete',`Merged ${d.coreRecords?.length||0} detailed records, ${d.dailyEntries?.length||0} Daily Log entries, and building-inspection data without deleting records already on this device.`);render();
+ }catch(e){showDialog('Sync import failed','Select a UH Field Desktop Sync JSON file.');}
+}
+
+const _v082_settingsView=settingsView;
+settingsView=function(){let html=_v082_settingsView();const card=`<div class="card"><h3>Desktop Sync</h3><p class="small muted">Use this to move all field data between the phone app and a desktop copy. Export on one device, then Import & Merge on the other. Existing records are matched by ID instead of being erased.</p><div class="actions"><button class="button" data-action="sync-export">Export Sync Package</button><label class="button secondary" style="cursor:pointer">Import & Merge Sync Package<input id="syncImport" type="file" accept="application/json,.json" hidden></label></div></div>`;return html.replace('<div class="card update-card">',card+'<div class="card update-card">')};
+
+const _v082_bind=bind;
+bind=function(){_v082_bind();const si=document.querySelector('#syncImport');if(si)si.onchange=e=>v082SyncImport(e.target.files?.[0]);};
+const _v082_action=action;
+action=function(name,id){if(name==='q-na')return v082SaveNA();if(name==='sync-export')return v082SyncExport();return _v082_action(name,id)};
+
+
+
+/* ===== v0.8.3 FIRE INSPECTION — AUTO DECKS + REQUIRED FIRE CATEGORIES ===== */
+const V083_FIRE_CATEGORIES=[
+  {key:'extinguishers',label:'Fire Extinguishers',defs:['Missing','Inspection/Service Due','Damaged','Blocked / Not Accessible','Not Properly Mounted','Other']},
+  {key:'egressDoors',label:'Emergency / Egress Doors',defs:['Does Not Close','Does Not Latch','Blocked / Obstructed','Damaged Door / Hardware','Improperly Secured','Other']},
+  {key:'fireExits',label:'Fire Exits / Egress Routes',defs:['Blocked Egress','Exit Obstructed','Storage in Egress Path','Exit Door Blocked','Trip / Access Hazard','Other']},
+  {key:'signage',label:'Signs / Posted Fire Information',defs:['Missing Fire Exit Map','Missing Fire Extinguisher Instructions','Luminous / Exit Sign Not Illuminated','Sign Damaged','Sign Obstructed / Not Visible','Incorrect Direction / Placement','Other']}
+];
+function v083Ordinal(n){return n===1?'1st':n===2?'2nd':n===3?'3rd':`${n}th`}
+function v083InferDeckCount(building){
+  const rooms=(building?.spaces||[]).filter(x=>x.type==='Bedroom').map(x=>String(qSpaceLabel(x)||'').trim());
+  const decks=rooms.map(r=>{const m=r.match(/^(\d{3,4})/);return m?Math.floor(Number(m[1])/100):0}).filter(n=>n>0&&n<10);
+  return decks.length?Math.max(...decks):1;
+}
+function v083FireSpaces(building){
+  const count=v083InferDeckCount(building),out=[];
+  for(let deck=1;deck<=count;deck++)for(const cat of V083_FIRE_CATEGORIES)out.push({
+    id:`fire-${building.number}-${deck}-${cat.key}`,
+    deck:String(deck),type:'Fire Inspection',fireCategory:cat.key,
+    designation:`${v083Ordinal(deck)} Deck · ${cat.label}`
+  });
+  return out;
+}
+function v083FireCat(sp){return V083_FIRE_CATEGORIES.find(x=>x.key===sp?.fireCategory)||V083_FIRE_CATEGORIES[0]}
+
+// New-cycle dialog: FIRE creates deck-by-deck fire inspection items instead of room/common-area items.
+qNewCycleDialog=function(){
+ const bs=Object.values(qstate.buildings).filter(b=>(b.spaces||[]).length);if(!bs.length)return;
+ showDialog('New Building Inspection',`<div class="stack"><div class="form-grid"><div class="field"><label>Building Manager / Inspector *</label><input id="qcInspector" list="qBmList" required placeholder="Select or type name"><datalist id="qBmList">${managerList().map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div><div class="field"><label>Building *</label><select id="qcBuilding">${bs.sort((a,b)=>Number(a.number)-Number(b.number)).map(b=>`<option value="${esc(b.number)}">${esc(b.number)} · ${(b.spaces||[]).filter(x=>x.type==='Bedroom').length} rooms · ${v083InferDeckCount(b)} deck${v083InferDeckCount(b)===1?'':'s'}</option>`).join('')}</select></div><div class="field"><label>Inspection Type *</label><select id="qcScope"><option value="20%">20% Inspection</option><option value="100%">100% Inspection</option><option value="FIRE">Fire Inspection</option></select></div><div class="field"><label>Start date</label><input id="qcDate" type="date" value="${today()}"></div><div class="field"><label>Fiscal Year</label><input id="qcFY" value="${qFYDefault()}"></div><div class="field"><label>Quarter</label><select id="qcQ"><option>Q1</option><option>Q2</option><option>Q3</option><option>Q4</option></select></div></div><div class="notice"><b>Inspection population loads automatically.</b><div class="small">20% samples actual eMH rooms and loads standard common areas. 100% loads all rooms and standard common areas. Fire Inspection infers the building deck count from the room series and creates the four required fire categories on every deck.</div></div><button class="button full" id="qcCreate">Start Inspection</button></div>`);
+ document.querySelector('#qcQ').value=qQuarterDefault();
+ document.querySelector('#qcCreate').onclick=()=>{
+   const building=val('qcBuilding'),inspector=val('qcInspector'),fy=val('qcFY').toUpperCase(),quarter=val('qcQ'),scope=val('qcScope'),base=qstate.buildings[building];
+   if(!inspector)return showDialog('Building Manager required','Select the Building Manager / Inspector.');
+   let snapshot=JSON.parse(JSON.stringify(base));
+   const c={id:uid(),fy,quarter,scope,building,startDate:val('qcDate'),inspector,createdAt:new Date().toISOString(),inventorySnapshot:snapshot,commonSpacesNA:false,spaceIds:[],sampleDraft:[],sampleAccepted:false,substitutions:[]};
+   if(scope==='FIRE'){
+     c.inferredDeckCount=v083InferDeckCount(base);
+     c.inventorySnapshot={...snapshot,spaces:v083FireSpaces(base)};
+     c.spaceIds=c.inventorySnapshot.spaces.map(x=>x.id);c.sampleAccepted=true;
+     c.sampleMethod=`Fire inspection: ${c.inferredDeckCount} deck(s) inferred from actual eMH room series; four required fire categories per deck`;
+   }else{
+     v082LoadCommonAreas(c);
+     snapshot=JSON.parse(JSON.stringify(qstate.buildings[building]));c.inventorySnapshot=snapshot;
+     const allCommon=(snapshot.spaces||[]).filter(x=>x.type!=='Bedroom').map(x=>x.id);
+     if(scope==='100%'){c.spaceIds=(snapshot.spaces||[]).map(x=>x.id);c.sampleAccepted=true}
+     else{const sample=qSample20(c);c.spaceIds=[...sample.bedIds,...allCommon];c.sampleDraft=[...sample.bedIds];c.sampleAccepted=true;c.sampleGeneratedAt=new Date().toISOString();c.sampleAcceptedAt=c.sampleGeneratedAt;c.sampleMethod='20% of actual eMH room roster, rounded up; proportional by deck; random within deck; standard common areas loaded automatically'}
+   }
+   qstate.cycles.unshift(c);qSave();qcycleId=c.id;closeDialog();qscreen='cycle';render();window.scrollTo(0,0);
+ };
+};
+
+function v083FireCycleView(c){
+ const s=qStats(c),pct=s.required?Math.round(s.done/s.required*100):0,b=qBuilding(c);
+ const groups={};for(const sp of (b?.spaces||[])){(groups[sp.deck]??=[]).push(sp)}
+ const rows=Object.keys(groups).sort((a,b)=>Number(a)-Number(b)).map(deck=>`<div class="card"><div class="page-head compact-head"><div><h3>${v083Ordinal(Number(deck))} Deck</h3><p>Required fire-safety categories</p></div></div>${groups[deck].map(sp=>{const r=s.ins.filter(x=>x.spaceId===sp.id).slice(-1)[0];return`<div class="record q-space-row"><span><b>${esc(v083FireCat(sp).label)}</b>${r?.fireLocation?`<div class="record-meta">${esc(r.fireLocation)}</div>`:''}</span><span class="q-row-actions">${r?`<b>${esc(r.result)}</b> <button class="button compact outline" data-action="q-inspect-space" data-id="${sp.id}">Edit</button>`:`<button class="button compact" data-action="q-inspect-space" data-id="${sp.id}">Inspect</button>`}</span></div>`}).join('')}</div>`).join('');
+ return`<div class="page-head"><div><span class="badge">FIRE · ${esc(c.fy)} ${esc(c.quarter)}</span><h2>Building ${esc(c.building)} Fire Inspection</h2><p>${esc(c.inspector)} · ${c.inferredDeckCount||Object.keys(groups).length} deck(s) inferred from room series</p></div><div class="q-icon-actions"><button class="button compact outline" data-action="q-dashboard">All Inspections</button><button class="q-icon-btn danger-icon" data-action="q-delete-cycle" data-id="${c.id}" title="Delete this inspection">🗑️</button></div></div><div class="card q-progress-card"><div class="q-kpis"><b>${s.done}/${s.required}<small> completed</small></b><b>${s.remaining}<small> remaining</small></b><b>${s.pass}<small> pass</small></b><b>${s.fail}<small> deficiency</small></b></div><div class="progress"><i style="width:${pct}%"></i></div><div class="actions q-cycle-actions"><button class="button" data-action="q-next">Inspect Next</button><button class="button secondary" data-action="q-export-excel">Export Excel</button></div></div>${rows}`;
+}
+const _v083_cycle_base=qCycleView;
+qCycleView=function(){const c=qCycle();return c?.scope==='FIRE'?v083FireCycleView(c):_v083_cycle_base()};
+
+function v083FireInspectView(c,sp){
+ const old=qstate.inspections.find(x=>x.id===qeditId)||qstate.inspections.filter(x=>x.cycleId===c.id&&x.spaceId===sp.id).slice(-1)[0];
+ const cat=v083FireCat(sp),selected=old?.fireDeficiencies||[];
+ const chips=cat.defs.map(x=>`<label class="def-chip ${selected.includes(x)?'selected':''}"><input type="checkbox" data-fire-def value="${esc(x)}" ${selected.includes(x)?'checked':''}><span>${esc(x)}</span></label>`).join('');
+ return`<div class="page-head compact-head"><div><span class="badge">FIRE · ${esc(c.fy)} ${esc(c.quarter)}</span><h2>${esc(v083Ordinal(Number(sp.deck)))} Deck · ${esc(cat.label)}</h2><p>Building ${esc(c.building)} · ${esc(c.inspector)}</p></div><button class="button compact outline" data-action="q-back-cycle">Back</button></div><div class="card q-fast"><h3>Inspection Result</h3><div class="q-big-actions"><button class="button success" data-action="fire-pass">✓ PASS ALL & NEXT</button><button class="button danger" data-action="fire-deficiency">⚠ ADD DEFICIENCY</button></div><div id="fireDefPanel" class="${selected.length||old?.fireLocation||old?.woRequired?'':'hidden'}"><div class="field"><label>Exact Location *</label><input id="fireLocation" value="${esc(old?.fireLocation||'')}" placeholder="Example: East stairwell, 2nd deck center hall"></div><h4 class="criteria-title fail-title">Deficiency</h4><p class="small muted">Select every condition that applies at this location.</p><div class="chip-grid">${chips}</div><div class="field"><label>Inspector Note (optional)</label><textarea id="fireNote" placeholder="Add details needed to understand the deficiency">${esc(old?.manualComment||'')}</textarea></div><label class="wo-toggle"><input id="fireWO" type="checkbox" ${old?.woRequired?'checked':''}> <span>Work Order Required</span></label><div id="fireWONoteWrap" class="field ${old?.woRequired?'':'hidden'}"><label>Repair Needed / Work Order Note *</label><textarea id="fireWONote" placeholder="State exactly what needs to be repaired or corrected">${esc(old?.workOrderNote||'')}</textarea></div><button class="button full" data-action="fire-save-def">Save & Next Fire Item</button></div></div>`;
+}
+const _v083_inspect_base=qInspectView;
+qInspectView=function(){const c=qCycle(),sp=(qBuilding(c)?.spaces||[]).find(x=>x.id===qspaceId);return c?.scope==='FIRE'&&sp?v083FireInspectView(c,sp):_v083_inspect_base()};
+
+function v083SaveFire(pass=false){
+ const c=qCycle(),sp=(qBuilding(c)?.spaces||[]).find(x=>x.id===qspaceId);if(!c||!sp)return;
+ const existing=qstate.inspections.find(x=>x.id===qeditId)||qstate.inspections.find(x=>x.cycleId===c.id&&x.spaceId===sp.id);
+ let defs=[],location='',note='',wo=false,woNote='';
+ if(!pass){defs=[...document.querySelectorAll('[data-fire-def]:checked')].map(x=>x.value);location=val('fireLocation').trim();note=val('fireNote').trim();wo=!!document.querySelector('#fireWO')?.checked;woNote=val('fireWONote').trim();if(!location)return showDialog('Location required','Enter the exact location of the fire-safety deficiency.');if(!defs.length)return showDialog('Deficiency required','Select at least one deficiency.');if(wo&&!woNote)return showDialog('Repair note required','Enter what needs to be repaired or corrected before saving the work-order item.')}
+ const rec={id:existing?.id||uid(),cycleId:c.id,date:today(),building:c.building,spaceId:sp.id,space:qSpaceLabel(sp),spaceType:'Fire Inspection',location:`${v083Ordinal(Number(sp.deck))} Deck`,fireDeck:Number(sp.deck),fireCategory:sp.fireCategory,fireCategoryLabel:v083FireCat(sp).label,fireLocation:location,result:pass?'PASS':'FAIL',failCriteria:pass?[]:defs,nonFailCriteria:[],fireDeficiencies:defs,manualComment:note,woRequired:wo,workOrderNote:woNote,inspector:c.inspector,updatedAt:new Date().toISOString()};
+ if(existing)Object.assign(existing,rec);else qstate.inspections.push(rec);
+ qstate.workOrders=qstate.workOrders.filter(w=>w.inspectionId!==rec.id);
+ if(wo)qstate.workOrders.push({id:uid(),cycleId:c.id,inspectionId:rec.id,building:c.building,space:rec.space,deficiency:defs.join('; '),manualComment:note,workOrderNote:woNote,woNumber:'',status:'Needs Submission',dateSubmitted:'',dateCompleted:''});
+ qSave();qGoNext(sp.id);
+}
+
+// FIRE export uses deck/category/location explicitly while keeping the standard workbook sheets.
+const _v083_export_base=qExportExcel;
+qExportExcel=function(){const c=qCycle();if(c?.scope!=='FIRE')return _v083_export_base();const s=qStats(c);const summary=[['Building','Deck','Fire Category','Result','Exact Location','Deficiencies','WO Required','Work Order Note','Inspector Note','Inspector','Date'],...s.ins.map(r=>[r.building,r.fireDeck,r.fireCategoryLabel||r.space,r.result,r.fireLocation||'',(r.fireDeficiencies||r.failCriteria||[]).join('; '),r.woRequired?'Yes':'No',r.workOrderNote||'',r.manualComment||'',r.inspector,r.date])];const deficiencies=[['Building','Deck','Fire Category','Exact Location','Deficiency','WO Required','Work Order Note','Inspector Note'],...s.ins.flatMap(r=>(r.fireDeficiencies||r.failCriteria||[]).map(x=>[r.building,r.fireDeck,r.fireCategoryLabel||r.space,r.fireLocation||'',x,r.woRequired?'Yes':'No',r.workOrderNote||'',r.manualComment||'']))];const wo=[['Building','Deck / Category','Deficiency','Exact Location / Inspector Note','Work Order Note','WO Number','Status','Date Submitted','Date Completed'],...s.wo.map(w=>{const i=qstate.inspections.find(x=>x.id===w.inspectionId);return[w.building,i?`${v083Ordinal(Number(i.fireDeck))} Deck · ${i.fireCategoryLabel}`:w.space,w.deficiency,i?.fireLocation||w.manualComment||'',w.workOrderNote||'',w.woNumber,w.status,w.dateSubmitted,w.dateCompleted]})];download(`Fire-Inspection-${c.fy}-${c.quarter}-Bldg-${c.building}.xlsx`,buildXlsx([{name:'FIRE INSPECTION',rows:summary},{name:'DEFICIENCIES',rows:deficiencies},{name:'WORK ORDERS REQUIRED',rows:wo}]))};
+
+const _v083_bind_base=bind;
+bind=function(){_v083_bind_base();const wo=document.querySelector('#fireWO');if(wo)wo.onchange=()=>document.querySelector('#fireWONoteWrap')?.classList.toggle('hidden',!wo.checked);document.querySelectorAll('[data-fire-def]').forEach(x=>x.onchange=()=>x.closest('.def-chip')?.classList.toggle('selected',x.checked))};
+const _v083_action_base=action;
+action=function(name,id){if(name==='fire-pass')return v083SaveFire(true);if(name==='fire-deficiency'){document.querySelector('#fireDefPanel')?.classList.remove('hidden');return}if(name==='fire-save-def')return v083SaveFire(false);return _v083_action_base(name,id)};
+
+
+// Open to the Home launcher; Daily Log remains the first promoted action.
+route='modules';
+
+render();
+
+
+
+/* ===== v0.8.6 checkout flow refinement ===== */
+function v086AddDaysYmd(ymd,days){
+  const p=String(ymd||today()).split('-').map(Number),d=new Date(p[0],(p[1]||1)-1,p[2]||1);d.setDate(d.getDate()+days);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+const v086StartViewBase=startView;
+startView=function(type){
+  let html=v086StartViewBase(type);
+  if(type!=='Check-Out')return html;
+  const p=checkoutPrefill;
+  const defaultFinal=p?.scheduledFinalDate||v086AddDaysYmd(today(),7);
+  const dateStatus=p?.scheduledFinalStatus||'Tentative';
+  const stage=p?'Final Inspection':'Pre-Inspection';
+  const block=`<div class="field full checkout-stage-box"><label>What are you doing today? *</label><div class="checkout-paths">
+    <label class="checkout-path"><input type="radio" name="checkoutStage" value="Pre-Inspection" ${stage==='Pre-Inspection'?'checked':''}><span><b>PRE-INSPECTION</b><small>Inspect now and complete the Final Inspection later.</small></span></label>
+    <label class="checkout-path"><input type="radio" name="checkoutStage" value="Final Inspection" ${stage==='Final Inspection'?'checked':''} ${p?'':'disabled'}><span><b>FINAL INSPECTION</b><small>${p?'Continue this completed Pre-Inspection.':'Start Final from Upcoming Final Inspections so it stays linked to the Pre-Inspection.'}</small></span></label>
+    <label class="checkout-path"><input type="radio" name="checkoutStage" value="Pre + Final Today"><span><b>PRE + FINAL TODAY</b><small>Use when both stages are completed during the same appointment.</small></span></label>
+  </div></div>
+  <div class="field" id="scheduledFinalWrap"><label>Planned Final Inspection Date <span id="finalDateStatus" class="${dateStatus==='Scheduled'?'scheduled-chip':'tentative-chip'}">${dateStatus==='Scheduled'?'SCHEDULED':'TENTATIVE'}</span></label><input id="scheduledFinalDate" type="date" value="${esc(defaultFinal)}"><input id="scheduledFinalStatus" type="hidden" value="${esc(dateStatus)}"><small id="finalDateHelp">Defaults to 7 days after the Pre-Inspection when the actual Final date is not known. Change the date when confirmed.</small></div>
+  <input id="checkoutCaseId" type="hidden" value="${esc(p?.checkoutCaseId||'')}">`;
+  html=html.replace(/<div class="field full checkout-stage-box">[\s\S]*?<input id="checkoutCaseId" type="hidden" value="[^"]*">/,block);
+  return html;
+};
+
+const v086BeginInspectionBase=beginInspection;
+beginInspection=function(){
+  const stage=document.querySelector('input[name="checkoutStage"]:checked')?.value||'Pre-Inspection';
+  const dateStatus=val('scheduledFinalStatus')||'Tentative';
+  const linkedPre=checkoutPrefill;
+  v086BeginInspectionBase();
+  if(draft?.type==='Check-Out'){
+    draft.checkoutStage=stage;
+    draft.checkoutMethod=stage==='Pre + Final Today'?'Pre + Final Same Visit':'Separate Pre + Final';
+    draft.preInspectionDate=stage==='Final Inspection'?(linkedPre?.date||''):draft.date;
+    draft.scheduledFinalStatus=stage==='Pre-Inspection'?dateStatus:(stage==='Pre + Final Today'?'Same Visit':(linkedPre?.scheduledFinalStatus||'Scheduled'));
+    if(stage==='Pre + Final Today'){
+      draft.scheduledFinalDate=draft.date;
+      draft.finalInspectionDate=draft.date;
+    } else if(stage==='Final Inspection'){
+      draft.scheduledFinalDate=linkedPre?.scheduledFinalDate||draft.scheduledFinalDate||'';
+      draft.finalInspectionDate=draft.date;
+    }
+    draft.checkoutStatus=stage==='Pre-Inspection'?'PRE COMPLETE — FINAL PENDING':(stage==='Final Inspection'?'FINAL IN PROGRESS':'FINAL IN PROGRESS');
+    saveDraft();render();
+  }
+};
+
+editorView=function(){
+  let html=_v078_editorView();
+  if(draft?.type!=='Check-Out')return html;
+  const stage=draft.checkoutStage||'Pre-Inspection';
+  const finalActive=stage==='Final Inspection'||stage==='Pre + Final Today';
+  const status=stage==='Pre-Inspection'?'PRE-INSPECTION':stage==='Pre + Final Today'?'PRE + FINAL TODAY':'FINAL INSPECTION';
+  const statusText=stage==='Pre-Inspection'
+    ?`Final planned ${fmtDate(draft.scheduledFinalDate)} · ${draft.scheduledFinalStatus==='Scheduled'?'Scheduled':'Tentative 7-day default'}`
+    :stage==='Pre + Final Today'?'Both checkout stages will be recorded from this one appointment.':'Linked to the prior Pre-Inspection. Complete Final Checkout Readiness before closing.';
+  const info=`<div class="card checkout-process checkout-status-banner ${stage==='Pre + Final Today'?'same-visit-banner':''}"><div class="process-line"><span class="process-step active">1</span><span class="process-bar"></span><span class="process-step ${finalActive?'active':''}">2</span></div><div class="process-labels"><b>Pre-Inspection</b><b>Final Inspection</b></div><div class="notice"><b>${status}</b><div class="small">${statusText}</div></div></div>`;
+  const readiness=finalActive?`<div class="card final-readiness"><h3>Final Checkout Readiness</h3><p class="small muted">Required for Final completion.</p>${[['personalPropertyRemoved','All personal property / gear removed'],['personalFurnitureRemoved','All personal furniture removed'],['trashRemoved','Trash and unwanted items removed'],['deepCleanComplete','Room deep cleaned']].map(([k,l])=>`<label class="readiness-check"><input type="checkbox" data-readiness="${k}" ${draft.finalReadiness?.[k]?'checked':''}> <span>${l}</span></label>`).join('')}</div>`:'';
+  return info+readiness+html;
+};
+
+completeInspection=function(){
+  if(draft?.type==='Check-Out'){
+    const finalStage=draft.checkoutStage==='Final Inspection'||draft.checkoutStage==='Pre + Final Today';
+    if(finalStage){
+      const r=draft.finalReadiness||{};
+      if(!r.personalPropertyRemoved||!r.personalFurnitureRemoved||!r.trashRemoved||!r.deepCleanComplete)return showDialog('Final checkout not ready','Confirm that all personal property/gear and personal furniture are removed, trash is removed, and the room is deep cleaned before completing the Final Inspection.');
+      draft.checkoutStatus='CHECKOUT COMPLETE';
+      draft.finalInspectionDate=draft.date;
+    }else{
+      draft.checkoutStatus='PRE COMPLETE — FINAL PENDING';
+      draft.emhUpdated=false;
+    }
+  }
+  _v078_completeInspection();
+};
+
+checkoutUpcoming=function(){
+  const finals=new Set(state.records.filter(r=>r.type==='Check-Out'&&r.checkoutCaseId&&(r.checkoutStage==='Final Inspection'||r.checkoutStage==='Pre + Final Today')&&r.checkoutStatus==='CHECKOUT COMPLETE').map(r=>r.checkoutCaseId));
+  return state.records.filter(r=>r.type==='Check-Out'&&r.checkoutStage==='Pre-Inspection'&&r.scheduledFinalDate&&r.checkoutCaseId&&!finals.has(r.checkoutCaseId)).sort((a,b)=>String(a.scheduledFinalDate).localeCompare(String(b.scheduledFinalDate)));
+};
+
+modulesView=function(){
+  const pending=state.records.filter(r=>!r.emhUpdated).length,up=checkoutUpcoming();
+  return`<section class="next-hero"><div class="next-hero-copy"><span class="next-badge">NEXT GENERATION · FUTENMA</span><h2>Ready for field operations</h2><p>Choose what you need. Daily Log is first for quick access, but nothing opens until you select it.</p></div><div class="runway-mark" aria-hidden="true"><span></span><span></span><span></span><span></span></div></section><div class="home-pills next-actions"><button class="home-pill primary" data-action="open-daily"><span class="home-icon">⌁</span><span>Daily Log<small>Fast activity entry and twice-monthly reporting</small></span><b class="pill-arrow">›</b></button><button class="home-pill" data-action="start-type" data-id="Check-Out"><span class="home-icon">⇤</span><span>Check-Out<small>Pre, linked Final, or Pre + Final Today</small></span><b class="pill-arrow">›</b></button><button class="home-pill" data-action="start-type" data-id="Check-In"><span class="home-icon">⇥</span><span>Check-In<small>Detailed room-condition inspection</small></span><b class="pill-arrow">›</b></button><button class="home-pill" data-action="open-quarterly"><span class="home-icon">◫</span><span>Inspections<small>20%, 100%, and Fire Inspection</small></span><b class="pill-arrow">›</b></button><button class="home-pill" data-action="start-type" data-id="Furniture-Issued"><span class="home-icon">▤</span><span>Furniture<small>Issued-item quantity and condition verification</small></span><b class="pill-arrow">›</b></button></div><div class="home-status next-status"><div class="status-head"><div><span class="status-kicker">TRANSFER STATUS</span><h3>Operational records</h3></div><span class="version-chip">v${esc(APP_VERSION)}</span></div><div class="status-grid"><div class="status-stat"><span>Completed</span><b>${state.records.length}</b></div><div class="status-stat"><span>Awaiting eMH</span><b>${pending}</b></div></div></div>${up.length?`<div class="card upcoming-card"><div class="page-head compact-head"><div><h3>Upcoming Final Inspections</h3><p>Tap Start Final to continue the linked checkout case. Tentative dates are 7-day planning defaults.</p></div></div>${up.slice(0,8).map(r=>`<div class="record upcoming-record"><span><b>${fmtDate(r.scheduledFinalDate)} · Bldg ${esc(r.building)} Room ${esc(r.room)}</b><div class="record-meta">${esc(r.formFields?.residentName||'')} · Pre ${fmtDate(r.date)} · <span class="status-tag ${r.scheduledFinalStatus==='Scheduled'?'scheduled':'tentative'}">${r.scheduledFinalStatus==='Scheduled'?'Scheduled':'Tentative'}</span></div></span><div class="upcoming-actions"><button class="button compact outline" data-action="reschedule-final" data-id="${r.id}">Change Date</button><button class="button compact" data-action="start-final" data-id="${r.id}">Start Final</button></div></div>`).join('')}</div>`:''}`;
+};
+
+const v086BindBase=bind;
+bind=function(){
+  v086BindBase();
+  const updateCheckoutStart=()=>{
+    const stage=document.querySelector('input[name="checkoutStage"]:checked')?.value||'Pre-Inspection';
+    const w=document.querySelector('#scheduledFinalWrap');if(w)w.classList.toggle('hidden',stage!=='Pre-Inspection');
+  };
+  document.querySelectorAll('input[name="checkoutStage"]').forEach(x=>x.onchange=updateCheckoutStart);updateCheckoutStart();
+  const d=document.querySelector('#scheduledFinalDate');if(d)d.onchange=()=>{const h=document.querySelector('#scheduledFinalStatus'),b=document.querySelector('#finalDateStatus'),help=document.querySelector('#finalDateHelp');if(h)h.value='Scheduled';if(b){b.className='scheduled-chip';b.textContent='SCHEDULED'}if(help)help.textContent='Confirmed/edited Final Inspection date.'};
+};
+
+const v086ActionBase=action;
+action=function(name,id){
+  if(name==='reschedule-final'){
+    const pre=state.records.find(r=>r.id===id);if(!pre)return;
+    showDialog('Change Final Inspection Date',`<div class="stack"><div class="field"><label>Final Inspection Date</label><input id="rescheduleFinalDate" type="date" value="${esc(pre.scheduledFinalDate||v086AddDaysYmd(pre.date||today(),7))}"></div><p class="small muted">Changing this date does not alter the completed Pre-Inspection.</p><button class="button full" id="saveFinalDate">Save Final Date</button></div>`);
+    document.querySelector('#saveFinalDate').onclick=()=>{const d=val('rescheduleFinalDate');if(!d)return;pre.scheduledFinalDate=d;pre.scheduledFinalStatus='Scheduled';pre.updatedAt=new Date().toISOString();save();closeDialog();render()};return;
+  }
+  v086ActionBase(name,id);
+};
+
+
+/* ===== v1.0 production behavior ===== */
+function showProcessing(message='Working…'){const o=document.querySelector('#processingOverlay'),t=document.querySelector('#processingText');if(t)t.textContent=message;if(o)o.classList.add('show')}
+function hideProcessing(){document.querySelector('#processingOverlay')?.classList.remove('show')}
+
+const v100EditorBase=editorView;
+editorView=function(){
+  let html=v100EditorBase();
+  if(draft?.type!=='Check-Out'||!(draft.checkoutStage==='Final Inspection'||draft.checkoutStage==='Pre + Final Today'))return html;
+  const card=`<div class="card final-note-card"><h3>Final Inspection Notes</h3><p class="small muted">Use this for checkout observations and context. Maintenance deficiencies should also be identified below as a Service Request.</p><div class="field"><label>Final Inspection Notes</label><textarea id="finalInspectionNotes" placeholder="Example: Resident removed remaining personal property; room deep cleaned.">${esc(draft.finalInspectionNotes||'')}</textarea></div><label class="wo-toggle sr-required-card"><input id="finalSRRequired" type="checkbox" ${draft.finalServiceRequestRequired?'checked':''}> <span>Service Request Required</span></label><div id="finalSRNoteWrap" class="field ${draft.finalServiceRequestRequired?'':'hidden'}"><label>Repair Needed / SR Note *</label><textarea id="finalSRNote" placeholder="State exactly what needs to be repaired or corrected">${esc(draft.finalServiceRequestNote||'')}</textarea></div></div>`;
+  const marker='<div class="paper-form';
+  const at=html.indexOf(marker);
+  return at>=0?html.slice(0,at)+card+html.slice(at):card+html;
+};
+
+const v100BindBase=bind;
+bind=function(){
+  v100BindBase();
+  const notes=document.querySelector('#finalInspectionNotes');if(notes)notes.oninput=()=>{draft.finalInspectionNotes=notes.value;saveDraft()};
+  const sr=document.querySelector('#finalSRRequired');if(sr)sr.onchange=()=>{draft.finalServiceRequestRequired=sr.checked;document.querySelector('#finalSRNoteWrap')?.classList.toggle('hidden',!sr.checked);if(!sr.checked)draft.finalServiceRequestNote='';saveDraft()};
+  const srn=document.querySelector('#finalSRNote');if(srn)srn.oninput=()=>{draft.finalServiceRequestNote=srn.value;saveDraft()};
+};
+
+const v100CompleteBase=completeInspection;
+completeInspection=function(){
+  if(draft?.type==='Check-Out'&&(draft.checkoutStage==='Final Inspection'||draft.checkoutStage==='Pre + Final Today')){
+    draft.finalInspectionNotes=String(document.querySelector('#finalInspectionNotes')?.value??draft.finalInspectionNotes??'').trim();
+    draft.finalServiceRequestRequired=!!document.querySelector('#finalSRRequired')?.checked;
+    draft.finalServiceRequestNote=String(document.querySelector('#finalSRNote')?.value??draft.finalServiceRequestNote??'').trim();
+    if(draft.finalServiceRequestRequired&&!draft.finalServiceRequestNote)return showDialog('Service Request note required','State what needs to be repaired or corrected before completing the Final Inspection.');
+    if(draft.finalServiceRequestRequired&&!draft.followUp?.includes('Work Request Required'))draft.followUp=[...(draft.followUp||[]).filter(x=>x!=='None'),'Work Request Required'];
+  }
+  return v100CompleteBase();
+};
+
+const v100OpenRecordBase=openRecord;
+openRecord=function(id){
+  const r=state.records.find(x=>x.id===id);
+  if(!r||r.type!=='Check-Out'||!(r.checkoutStage==='Final Inspection'||r.checkoutStage==='Pre + Final Today'))return v100OpenRecordBase(id);
+  v100OpenRecordBase(id);
+  const body=document.querySelector('#dialogBody');if(!body)return;
+  const anchor=body.querySelector('.actions');
+  const section=document.createElement('div');section.className='stack';section.style.marginTop='12px';
+  const notes=String(r.finalInspectionNotes||'').trim(),sr=!!r.finalServiceRequestRequired,srn=String(r.finalServiceRequestNote||'').trim();
+  section.innerHTML=`${notes?`<div class="notice"><b>Final Inspection Notes</b><div class="small">${esc(notes)}</div></div>`:''}${sr?`<div class="notice warn"><b>Service Request Required</b><div class="small">${esc(srn||'Repair/correction required.')}</div></div>`:''}`;
+  if(section.innerHTML&&anchor)body.insertBefore(section,anchor);
+};
+
+const v100RenderBase=render;
+render=function(){
+  app.classList.remove('page-enter');
+  v100RenderBase();
+  requestAnimationFrame(()=>app.classList.add('page-enter'));
+};
+
+const v100PdfBase=exportInspectionPdf;
+exportInspectionPdf=async function(record){showProcessing('Generating PDF…');try{return await v100PdfBase(record)}finally{hideProcessing()}};
+const v100RangePdfBase=exportRangePdf;
+exportRangePdf=async function(){showProcessing('Preparing PDF export…');try{return await v100RangePdfBase()}finally{hideProcessing()}};
+
+
+/* ===== v1.0.1 Daily Log records / export ===== */
+let dailyEditingId=null;
+
+function v101DailyExcel(entries,label){
+  const rows=[['Entry ID','Original Timestamp','Last Updated','Building Manager','Building','Room / Area','Activity','Duration Minutes','Note','Highlight'],
+    ...entries.map(e=>[e.id||'',e.timestamp||'',e.updatedAt||'',e.inspector||'',e.building||'',e.roomArea||'',e.activity||'',e.durationMinutes||'',e.note||'',e.highlight?'Yes':'No'])];
+  return buildXlsx([{name:'DAILY LOG',rows}]);
+}
+function v101ExportDailyExcel(all=false){
+  const entries=all?[...dailyState.entries]:dailyPeriodEntries();
+  const from=val('dailyFrom')||today(),through=val('dailyThrough')||today();
+  const suffix=all?'ALL':`${from}-through-${through}`;
+  download(`UH-Daily-Log-${suffix}.xlsx`,v101DailyExcel(entries,suffix));
+}
+dailyCsv=function(){
+  const rows=[['Entry ID','Original Timestamp','Last Updated','Building Manager','Building','Room / Area','Activity','Duration Minutes','Note','Highlight'],
+    ...dailyPeriodEntries().map(e=>[e.id||'',e.timestamp||'',e.updatedAt||'',e.inspector||'',e.building||'',e.roomArea||'',e.activity||'',e.durationMinutes||'',e.note||'',e.highlight?'Yes':'No'])];
+  return rows.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\r\n');
+};
+
+dailyLogView=function(){
+  const range=dailyDefaultRange(),entries=[...dailyState.entries].sort((a,b)=>String(b.timestamp).localeCompare(String(a.timestamp)));
+  const edit=dailyEditingId?dailyState.entries.find(e=>e.id===dailyEditingId):null;
+  if(dailyEditingId&&!edit)dailyEditingId=null;
+  const inspector=edit?.inspector??dailyState.lastInspector??'',building=edit?.building??dailyState.lastBuilding??'',room=edit?.roomArea??'',activity=edit?.activity??'',dur=String(edit?.durationMinutes??15),note=edit?.note??'',highlight=!!edit?.highlight;
+  const chips=[['5','5 min'],['10','10 min'],['15','15 min'],['30','30 min'],['45','45 min'],['60','1 hr'],['90','1.5 hr'],['120','2 hr+']];
+  return`<div class="page-head"><div><span class="badge">${edit?'EDIT ENTRY':'FAST ENTRY'}</span><h2>Daily Log</h2><p>${edit?'Correct the record without changing its original timestamp.':'Log the work once; use it later for reporting and analysis.'}</p></div></div>
+  <form id="dailyForm" class="card daily-form ${edit?'editing-record':''}">
+    ${edit?`<div class="notice"><b>Editing saved entry</b><div class="small">Original: ${new Date(edit.timestamp).toLocaleString()} · ID ${esc(edit.id)}</div></div>`:''}
+    <div class="form-grid">
+      <div class="field"><label>Building Manager *</label><input id="dailyInspector" list="dailyBmList" value="${esc(inspector)}" required><datalist id="dailyBmList">${managerList().map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div>
+      <div class="field"><label>Building *</label><input id="dailyBuilding" list="dailyBuildingList" value="${esc(building)}" required><datalist id="dailyBuildingList">${buildingList().map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div>
+      <div class="field"><label>Room / Area</label><input id="dailyRoom" value="${esc(room)}" placeholder="Room, lounge, laundry, exterior…"></div>
+      <div class="field"><label>Activity *</label><input id="dailyActivity" list="dailyActivityList" value="${esc(activity)}" required placeholder="Type or select"><datalist id="dailyActivityList">${DAILY_ACTIVITIES.map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div>
+    </div>
+    <div class="field"><label>Estimated Duration *</label><div class="duration-chips">${chips.map(([v,l])=>`<label><input type="radio" name="dailyDuration" value="${v}" ${v===dur?'checked':''}><span>${l}</span></label>`).join('')}</div></div>
+    <div class="field"><label>Note</label><textarea id="dailyNote" placeholder="Short operational note">${esc(note)}</textarea></div>
+    <label class="highlight-toggle"><input id="dailyHighlight" type="checkbox" ${highlight?'checked':''}> <span>★ Highlight for twice-monthly summary</span></label>
+    <div class="actions">${edit?`<button class="button" type="submit" data-daily-mode="update">Save Changes</button><button class="button outline" type="button" data-action="daily-cancel-edit">Cancel Edit</button>`:`<button class="button" type="submit" data-daily-mode="save">Save</button><button class="button secondary" type="submit" data-daily-mode="another">Save & Add Another</button>`}</div>
+  </form>
+  <div class="card daily-data-card"><div class="page-head compact-head"><div><h3>Daily Log Data & Reporting</h3><p>${dailyState.entries.length} saved entr${dailyState.entries.length===1?'y':'ies'} · Included in JSON Backup and Desktop Sync.</p></div></div>
+    <div class="form-grid"><div class="field"><label>From</label><input id="dailyFrom" type="date" value="${range.start}"></div><div class="field"><label>Through</label><input id="dailyThrough" type="date" value="${range.end}"></div></div>
+    <div class="actions"><button class="button secondary" data-action="daily-export">Export Period CSV</button><button class="button secondary" data-action="daily-export-excel">Export Period Excel</button><button class="button outline" data-action="daily-copy-summary">Copy Summary</button><button class="button outline" data-action="daily-export-all-excel">Export All Excel</button></div>
+  </div>
+  <div class="card"><div class="page-head compact-head"><div><h3>Daily Log Records</h3><p>Latest ${Math.min(entries.length,30)} shown. Use Edit to correct a saved entry; the original timestamp is preserved.</p></div></div>
+    ${entries.length?entries.slice(0,30).map(e=>`<div class="record daily-record"><span><b>${new Date(e.timestamp).toLocaleString()} · Bldg ${esc(e.building)} ${esc(e.roomArea||'')}</b><div class="record-meta">${esc(e.activity)} · ${e.durationMinutes} min${e.highlight?' · ★ Highlight':''}${e.updatedAt?' · Edited':''}<br>${esc(e.note||'')}</div></span><div class="daily-record-actions"><button class="q-icon-btn" data-action="daily-edit" data-id="${e.id}" title="Edit Daily Log entry">✎</button><button class="q-icon-btn danger-icon" data-action="daily-delete" data-id="${e.id}" title="Delete Daily Log entry">🗑️</button></div></div>`).join(''):'<div class="empty">No Daily Log entries yet.</div>'}
+  </div>`;
+};
+
+const v101BindBase=bind;
+bind=function(){
+  v101BindBase();
+  const df=document.querySelector('#dailyForm');
+  if(df){
+    let mode=dailyEditingId?'update':'save';
+    df.querySelectorAll('button[type="submit"]').forEach(b=>b.onclick=()=>mode=b.dataset.dailyMode||mode);
+    df.onsubmit=e=>{
+      e.preventDefault();
+      const inspector=val('dailyInspector'),building=val('dailyBuilding'),activity=val('dailyActivity'),dur=Number(document.querySelector('input[name="dailyDuration"]:checked')?.value||0);
+      if(!inspector||!building||!activity||!dur)return showDialog('Daily Log incomplete','Select the BM, building, activity, and duration.');
+      const payload={inspector,building,roomArea:val('dailyRoom'),activity,durationMinutes:dur,note:val('dailyNote'),highlight:!!document.querySelector('#dailyHighlight')?.checked};
+      if(dailyEditingId){
+        const entry=dailyState.entries.find(x=>x.id===dailyEditingId);
+        if(!entry)return showDialog('Entry not found','The Daily Log entry could not be found.');
+        Object.assign(entry,payload,{updatedAt:new Date().toISOString()});
+        dailyEditingId=null;
+      }else{
+        dailyState.entries.push({id:uid(),timestamp:new Date().toISOString(),...payload});
+      }
+      dailyState.lastInspector=inspector;dailyState.lastBuilding=building;dailySave();render();
+      if(mode==='another'&&!dailyEditingId)setTimeout(()=>document.querySelector('#dailyActivity')?.focus(),0);
+    };
+  }
+};
+
+const v101ActionBase=action;
+action=function(name,id){
+  if(name==='daily-edit'){dailyEditingId=id;route='daily';render();setTimeout(()=>window.scrollTo({top:0,behavior:'smooth'}),0);return}
+  if(name==='daily-cancel-edit'){dailyEditingId=null;render();return}
+  if(name==='daily-export-excel'){v101ExportDailyExcel(false);return}
+  if(name==='daily-export-all-excel'){v101ExportDailyExcel(true);return}
+  if(name==='daily-delete'&&dailyEditingId===id)dailyEditingId=null;
+  return v101ActionBase(name,id);
+};
+
+
+
+/* ===== v1.0.2 Release Candidate: Daily Log priority + Escort/QC + Building Roster Manager ===== */
+const V102_DAILY_ACTIVITIES=[
+  'Escort','Lock Service','Appliance','QC / Repair Verification','Maintenance / Work Order','Room Inspection','Check-In','Check-Out','Room Transfer','Key Service','Common Area / Walkthrough','Property / Furniture','Occupancy / Vacancy Verification','Resident Support','Leadership / Unit Coordination','Administrative','Other'
+];
+const V102_ESCORT_RESULTS=['Escort Only','Escort + QC'];
+
+function v102DailyExcel(entries){
+  const rows=[['Entry ID','Original Timestamp','Last Updated','Building Manager','Building','Room / Area','Activity','Sub-Activity / Result','Duration Minutes','Note','Highlight'],
+    ...entries.map(e=>[e.id||'',e.timestamp||'',e.updatedAt||'',e.inspector||'',e.building||'',e.roomArea||'',e.activity||'',e.subActivity||'',e.durationMinutes||'',e.note||'',e.highlight?'Yes':'No'])];
+  return buildXlsx([{name:'DAILY LOG',rows}]);
+}
+v101DailyExcel=v102DailyExcel;
+dailyCsv=function(){
+  const rows=[['Entry ID','Original Timestamp','Last Updated','Building Manager','Building','Room / Area','Activity','Sub-Activity / Result','Duration Minutes','Note','Highlight'],
+    ...dailyPeriodEntries().map(e=>[e.id||'',e.timestamp||'',e.updatedAt||'',e.inspector||'',e.building||'',e.roomArea||'',e.activity||'',e.subActivity||'',e.durationMinutes||'',e.note||'',e.highlight?'Yes':'No'])];
+  return rows.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\r\n');
+};
+
+dailyLogView=function(){
+  const range=dailyDefaultRange(),entries=[...dailyState.entries].sort((a,b)=>String(b.timestamp).localeCompare(String(a.timestamp)));
+  const edit=dailyEditingId?dailyState.entries.find(e=>e.id===dailyEditingId):null;
+  if(dailyEditingId&&!edit)dailyEditingId=null;
+  const inspector=edit?.inspector??dailyState.lastInspector??'',building=edit?.building??dailyState.lastBuilding??'',room=edit?.roomArea??'',activity=edit?.activity??'',subActivity=edit?.subActivity??'',dur=String(edit?.durationMinutes??15),note=edit?.note??'',highlight=!!edit?.highlight;
+  const chips=[['5','5 min'],['10','10 min'],['15','15 min'],['30','30 min'],['45','45 min'],['60','1 hr'],['90','1.5 hr'],['120','2 hr+']];
+  const escortBlock=`<div id="dailyEscortResultWrap" class="field ${activity==='Escort'?'':'hidden'}"><label>Escort Result *</label><div class="duration-chips escort-result-chips">${V102_ESCORT_RESULTS.map(v=>`<label><input type="radio" name="dailyEscortResult" value="${esc(v)}" ${subActivity===v||(activity==='Escort'&&!subActivity&&v==='Escort Only')?'checked':''}><span>${esc(v)}</span></label>`).join('')}</div><p class="small muted">Use <b>Escort + QC</b> when you escort maintenance and verify the completed repair during the same visit. Use <b>QC / Repair Verification</b> as the Activity when you return only to verify a repair.</p></div>`;
+  return`<div class="page-head"><div><span class="badge">${edit?'EDIT ENTRY':'FAST ENTRY'}</span><h2>Daily Log</h2><p>${edit?'Correct the record without changing its original timestamp.':'Log the work once; use it later for reporting and analysis.'}</p></div></div>
+  <form id="dailyForm" class="card daily-form ${edit?'editing-record':''}">
+    ${edit?`<div class="notice"><b>Editing saved entry</b><div class="small">Original: ${new Date(edit.timestamp).toLocaleString()} · ID ${esc(edit.id)}</div></div>`:''}
+    <div class="form-grid">
+      <div class="field"><label>Building Manager *</label><input id="dailyInspector" list="dailyBmList" value="${esc(inspector)}" required><datalist id="dailyBmList">${managerList().map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div>
+      <div class="field"><label>Building *</label><input id="dailyBuilding" list="dailyBuildingList" value="${esc(building)}" required><datalist id="dailyBuildingList">${buildingList().map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div>
+      <div class="field"><label>Room / Area</label><input id="dailyRoom" value="${esc(room)}" placeholder="Room, lounge, laundry, exterior…"></div>
+      <div class="field"><label>Activity *</label><input id="dailyActivity" list="dailyActivityList" value="${esc(activity)}" required placeholder="Type or select"><datalist id="dailyActivityList">${V102_DAILY_ACTIVITIES.map(x=>`<option value="${esc(x)}">`).join('')}</datalist><p class="small muted">Most-used choices are listed first: Escort, Lock Service, Appliance, and QC / Repair Verification.</p></div>
+    </div>
+    ${escortBlock}
+    <div class="field"><label>Estimated Duration *</label><div class="duration-chips">${chips.map(([v,l])=>`<label><input type="radio" name="dailyDuration" value="${v}" ${v===dur?'checked':''}><span>${l}</span></label>`).join('')}</div></div>
+    <div class="field"><label>Note</label><textarea id="dailyNote" placeholder="Short operational note">${esc(note)}</textarea></div>
+    <label class="highlight-toggle"><input id="dailyHighlight" type="checkbox" ${highlight?'checked':''}> <span>★ Highlight for twice-monthly summary</span></label>
+    <div class="actions">${edit?`<button class="button" type="submit" data-daily-mode="update">Save Changes</button><button class="button outline" type="button" data-action="daily-cancel-edit">Cancel Edit</button>`:`<button class="button" type="submit" data-daily-mode="save">Save</button><button class="button secondary" type="submit" data-daily-mode="another">Save & Add Another</button>`}</div>
+  </form>
+  <div class="card daily-data-card"><div class="page-head compact-head"><div><h3>Daily Log Data & Reporting</h3><p>${dailyState.entries.length} saved entr${dailyState.entries.length===1?'y':'ies'} · Included in JSON Backup and Desktop Sync.</p></div></div>
+    <div class="form-grid"><div class="field"><label>From</label><input id="dailyFrom" type="date" value="${range.start}"></div><div class="field"><label>Through</label><input id="dailyThrough" type="date" value="${range.end}"></div></div>
+    <div class="actions"><button class="button secondary" data-action="daily-export">Export Period CSV</button><button class="button secondary" data-action="daily-export-excel">Export Period Excel</button><button class="button outline" data-action="daily-copy-summary">Copy Summary</button><button class="button outline" data-action="daily-export-all-excel">Export All Excel</button></div>
+  </div>
+  <div class="card"><div class="page-head compact-head"><div><h3>Daily Log Records</h3><p>Latest ${Math.min(entries.length,30)} shown. Use Edit to correct a saved entry; the original timestamp is preserved.</p></div></div>
+    ${entries.length?entries.slice(0,30).map(e=>`<div class="record daily-record"><span><b>${new Date(e.timestamp).toLocaleString()} · Bldg ${esc(e.building)} ${esc(e.roomArea||'')}</b><div class="record-meta">${esc(e.activity)}${e.subActivity?' · '+esc(e.subActivity):''} · ${e.durationMinutes} min${e.highlight?' · ★ Highlight':''}${e.updatedAt?' · Edited':''}<br>${esc(e.note||'')}</div></span><div class="daily-record-actions"><button class="q-icon-btn" data-action="daily-edit" data-id="${e.id}" title="Edit Daily Log entry">✎</button><button class="q-icon-btn danger-icon" data-action="daily-delete" data-id="${e.id}" title="Delete Daily Log entry">🗑️</button></div></div>`).join(''):'<div class="empty">No Daily Log entries yet.</div>'}
+  </div>`;
+};
+
+function v102RosterRooms(building){
+  return (qstate.buildings[String(building)]?.spaces||[]).filter(s=>s.type==='Bedroom').map(s=>String(s.designation||'')).filter(Boolean).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+}
+function v102ParseRooms(text){
+  return [...new Set(String(text||'').split(/[\s,;]+/).map(x=>x.trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+}
+function v102SyncBuildingList(){
+  state.settings.buildings=Object.keys(qstate.buildings||{}).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})).join('\n');
+  state.settings.bmAssignments='';save();
+}
+function v102SaveRoster(number,rooms){
+  number=String(number||'').trim();rooms=v102ParseRooms(rooms);
+  if(!number)return showDialog('Building required','Enter the building number.');
+  if(!rooms.length)return showDialog('Room roster required','Paste at least one real room number for this building.');
+  qstate.buildings[number]=v080MakeBuilding(number,rooms);qSave();v102SyncBuildingList();
+  showDialog('Building roster saved',`Building <b>${esc(number)}</b> now has <b>${rooms.length}</b> physical rooms. Existing inspection cycles retain their saved snapshots.`);render();
+}
+function v102CsvLine(line){let out=[],cur='',q=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(q&&line[i+1]==='"'){cur+='"';i++}else q=!q}else if(c===','&&!q){out.push(cur.trim());cur=''}else cur+=c}out.push(cur.trim());return out}
+async function v102ImportRosterCsv(file,selectedBuilding){
+  if(!file)return;
+  try{
+    const lines=(await file.text()).split(/\r?\n/).filter(x=>x.trim());if(!lines.length)throw Error();
+    const rows=lines.map(v102CsvLine),head=rows[0].map(x=>x.toLowerCase().trim());
+    const bi=head.findIndex(x=>x==='building'||x.includes('building number')||x.includes('bldg'));
+    const ri=head.findIndex(x=>x==='room'||x.includes('room number')||x.includes('room designation'));
+    const groups={};
+    if(ri>=0){for(const row of rows.slice(1)){const b=bi>=0?String(row[bi]||'').trim():String(selectedBuilding||'').trim(),room=String(row[ri]||'').trim();if(b&&room)(groups[b]??=[]).push(room)}}
+    else {const b=String(selectedBuilding||'').trim();if(!b)return showDialog('Building required','Choose/enter a building before importing a room-only CSV.');groups[b]=rows.map(r=>r[0]).filter(Boolean)}
+    const keys=Object.keys(groups);if(!keys.length)throw Error();
+    keys.forEach(b=>{const rooms=v102ParseRooms(groups[b].join('\n'));if(rooms.length)qstate.buildings[b]=v080MakeBuilding(b,rooms)});qSave();v102SyncBuildingList();render();showDialog('Room roster imported',`Imported room rosters for ${keys.length} building${keys.length===1?'':'s'}.`)
+  }catch{showDialog('Import failed','Use a CSV with Building and Room columns, or select a building and import a one-column room list.')}
+}
+function v102ExportBuildingMaster(){
+  const rows=[['Building','Room']];Object.keys(qstate.buildings||{}).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})).forEach(b=>v102RosterRooms(b).forEach(r=>rows.push([b,r])));
+  const csv=rows.map(r=>r.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(',')).join('\r\n');download(`UH-Building-Master-${today()}.csv`,new Blob([csv],{type:'text/csv'}));
+}
+
+settingsView=function(){const crit=qCriteria(),known=Object.keys(qstate.buildings||{}).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));return`<div class="page-head"><div><h2>Settings</h2><p>Team roster, building room rosters, inspection criteria, updates, and local data.</p></div></div><div class="stack">
+<form id="settingsForm" class="card form-grid"><div class="field"><label>Installation</label><input id="setInstallation" value="${esc(state.settings.installation)}"></div><div class="field"><label>Installation code</label><input id="setInstallationCode" value="${esc(state.settings.installationCode||'FT')}" maxlength="4"></div><div class="field full"><label>Building Managers</label><textarea id="setBuildingManagers" class="roster-input">${esc(state.settings.buildingManagers||'')}</textarea><p class="small muted">One name per line. Buildings are not assigned to a default BM; the BM is selected when the action is performed.</p></div><input id="setInspector" type="hidden" value=""><input id="setBuildings" type="hidden" value="${esc(state.settings.buildings||'')}"><input id="setBmAssignments" type="hidden" value=""><div class="field full"><label>20% / 100% — FAIL Criteria</label><textarea id="setQFail" class="criteria-editor">${esc(crit.fail.join('\n'))}</textarea><p class="small muted">One criterion per line. Changes apply to new inspections; completed records retain their selected text.</p></div><div class="field full"><label>20% / 100% — PASS W/CONDITION Criteria</label><textarea id="setQNonfail" class="criteria-editor">${esc(crit.nonfail.join('\n'))}</textarea></div><div class="field full"><button class="button" type="submit">Save Settings</button></div></form>
+<div class="card roster-manager"><div class="page-head compact-head"><div><h3>Building & Room Roster Manager</h3><p>Add future buildings without an app update. Store only physical rooms—not occupancy or active/inactive status.</p></div></div><div class="form-grid"><div class="field"><label>Building number</label><input id="rosterBuilding" list="rosterBuildingList" placeholder="e.g., 415"><datalist id="rosterBuildingList">${known.map(b=>`<option value="${esc(b)}">`).join('')}</datalist></div><div class="field"><label>Known buildings</label><select id="rosterKnown"><option value="">Select to load…</option>${known.map(b=>`<option value="${esc(b)}">${esc(b)} · ${v102RosterRooms(b).length} rooms</option>`).join('')}</select></div><div class="field full"><label>Physical room roster</label><textarea id="rosterRooms" class="roster-input" placeholder="101\n102\n103\n201\n202"></textarea><p class="small muted">Paste one room per line, or separate rooms with commas/spaces. Skipped room numbers are preserved because the app uses only what you enter.</p></div></div><div class="actions"><button class="button" data-action="roster-save">Save / Update Building</button><label class="button secondary" style="cursor:pointer">Import CSV<input id="rosterCsvImport" type="file" accept="text/csv,.csv" hidden></label><button class="button outline" data-action="roster-export">Export Building Master CSV</button><button class="button danger" data-action="roster-delete">Delete Building</button></div><div id="rosterStatus" class="small muted" style="margin-top:10px">${known.length} buildings currently loaded.</div></div>
+<div class="card update-card"><h3>App Update</h3><p class="small muted">Installed version: <b>${esc(APP_VERSION)}</b>. Updates are delivered through the installed web app.</p><button class="button secondary" data-action="check-update">Check for Update</button></div><div class="card"><h3>Local Data</h3><p class="small muted">Export a JSON backup before changing devices or clearing browser data.</p><div class="actions"><button class="button" data-action="export-all">Export Detailed Inspections Excel</button><button class="button secondary" data-action="backup">Export JSON Backup</button><label class="button outline" style="cursor:pointer">Import JSON Backup<input id="restoreBackup" type="file" accept="application/json,.json" hidden></label><button class="button danger" data-action="clear-data">Erase All Data</button></div></div></div>`};
+
+const v102BindBase=bind;
+bind=function(){
+  v102BindBase();
+  const act=document.querySelector('#dailyActivity'),wrap=document.querySelector('#dailyEscortResultWrap');
+  if(act&&wrap){const sync=()=>wrap.classList.toggle('hidden',act.value!=='Escort');act.addEventListener('input',sync);act.addEventListener('change',sync);sync()}
+  const df=document.querySelector('#dailyForm');
+  if(df){let mode=dailyEditingId?'update':'save';df.querySelectorAll('button[type="submit"]').forEach(b=>b.onclick=()=>mode=b.dataset.dailyMode||mode);df.onsubmit=e=>{e.preventDefault();const inspector=val('dailyInspector'),building=val('dailyBuilding'),activity=val('dailyActivity'),dur=Number(document.querySelector('input[name="dailyDuration"]:checked')?.value||0);if(!inspector||!building||!activity||!dur)return showDialog('Daily Log incomplete','Select the BM, building, activity, and duration.');let subActivity='';if(activity==='Escort'){subActivity=document.querySelector('input[name="dailyEscortResult"]:checked')?.value||'';if(!subActivity)return showDialog('Escort result required','Select Escort Only or Escort + QC.')}const payload={inspector,building,roomArea:val('dailyRoom'),activity,subActivity,durationMinutes:dur,note:val('dailyNote'),highlight:!!document.querySelector('#dailyHighlight')?.checked};if(dailyEditingId){const entry=dailyState.entries.find(x=>x.id===dailyEditingId);if(!entry)return showDialog('Entry not found','The Daily Log entry could not be found.');Object.assign(entry,payload,{updatedAt:new Date().toISOString()});dailyEditingId=null}else dailyState.entries.push({id:uid(),timestamp:new Date().toISOString(),...payload});dailyState.lastInspector=inspector;dailyState.lastBuilding=building;dailySave();render();if(mode==='another')setTimeout(()=>document.querySelector('#dailyActivity')?.focus(),0)}}
+  const known=document.querySelector('#rosterKnown'),building=document.querySelector('#rosterBuilding'),rooms=document.querySelector('#rosterRooms');
+  const loadRoster=()=>{const b=(known?.value||building?.value||'').trim();if(!b)return;if(building)building.value=b;if(rooms)rooms.value=v102RosterRooms(b).join('\n');const status=document.querySelector('#rosterStatus');if(status){const rs=v102RosterRooms(b),decks=[...new Set(rs.map(r=>String(r)[0]).filter(x=>/\d/.test(x)))];status.textContent=`Building ${b}: ${rs.length} rooms · inferred ${decks.length||0} deck${decks.length===1?'':'s'}.`}};
+  if(known)known.onchange=loadRoster;if(building)building.onchange=loadRoster;
+  const imp=document.querySelector('#rosterCsvImport');if(imp)imp.onchange=e=>v102ImportRosterCsv(e.target.files?.[0],val('rosterBuilding'));
+};
+
+const v102ActionBase=action;
+action=function(name,id){
+  if(name==='roster-save'){v102SaveRoster(val('rosterBuilding'),document.querySelector('#rosterRooms')?.value||'');return}
+  if(name==='roster-export'){v102ExportBuildingMaster();return}
+  if(name==='roster-delete'){const b=val('rosterBuilding');if(!b)return showDialog('Building required','Choose a building first.');if(confirm(`Delete Building ${b} from the current Building Master? Existing inspection cycles keep their saved snapshots.`)){delete qstate.buildings[b];qSave();v102SyncBuildingList();render()}return}
+  return v102ActionBase(name,id);
+};
+
+(function productionLaunch(){
+  const s=document.querySelector('#launchSplash');if(!s)return;
+  let closed=false;
+  const close=()=>{if(closed)return;closed=true;s.classList.add('hide');setTimeout(()=>s.remove(),420)};
+  const timer=setTimeout(close,3200);
+  s.addEventListener('click',()=>{clearTimeout(timer);close()},{once:true});
+})();
+
+render();
+
+

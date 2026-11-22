@@ -1,10 +1,17 @@
 {
-  "name":"UH Field App - Room Inspections",
-  "short_name":"UH Inspections",
-  "start_url":"./",
-  "display":"standalone",
-  "background_color":"#f3f6f9",
-  "theme_color":"#0b1f33",
-  "description":"Mobile UH inspections, signatures, and furniture records that supplement eMH.",
-  "icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+  "name": "UH Field NEXT \u2013 MCAS Futenma",
+  "short_name": "UH Field NEXT",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f3f6f9",
+  "theme_color": "#061a2b",
+  "description": "MCAS Futenma UH Building Manager field operations app.",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }
